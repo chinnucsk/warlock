@@ -1,0 +1,12 @@
+{application, dlock,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { dlock_app, []}},
+  {env, []}
+ ]}.
