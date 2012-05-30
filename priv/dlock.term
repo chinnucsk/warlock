@@ -1,0 +1,16 @@
+[
+ %% Dlock config
+ {dlock, [
+          %% dlock backend
+          {backend, db_ets_backend}
+          ]},
+          
+ %% Dlock backend config :: ETS          
+ {db_ets_backend, [
+                      %% Name of the ets table
+                      {name, table},
+                      
+                      %% Options for the ets table
+                      {options, []}
+                      ]}
+].

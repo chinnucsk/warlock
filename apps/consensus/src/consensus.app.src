@@ -1,0 +1,12 @@
+{application, consensus,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { consensus_app, []}},
+  {env, []}
+ ]}.

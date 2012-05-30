@@ -1,0 +1,11 @@
+{application, util,
+ [
+  {description, "General utility library for dlock"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.

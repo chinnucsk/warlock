@@ -1,4 +1,4 @@
-{application, dlock,
+{application, db,
  [
   {description, ""},
   {vsn, "1"},
@@ -7,6 +7,6 @@
                   kernel,
                   stdlib
                  ]},
-  {mod, { dlock_app, []}},
+  {mod, { db_app, []}},
   {env, []}
  ]}.

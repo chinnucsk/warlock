@@ -1,4 +1,0 @@
-{application,dlock}.
-{packages,[]}.
-{modules,[dlock_app,dlock_backend,dlock_config,dlock_db,dlock_ets_backend,
-          dlock_object,dlock_sup]}.

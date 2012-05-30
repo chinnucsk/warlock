@@ -1,6 +1,6 @@
 # Generic app Makefile 
 
-REBAR=./rebar
+REBAR=../../rebar
 
 all: small_clean dependencies compile docs
 

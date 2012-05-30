@@ -1,4 +1,4 @@
--module(dlock_app).
+-module(db_app).
 
 -behaviour(application).
 
@@ -10,7 +10,7 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    dlock_sup:start_link().
+    db_sup:start_link().
 
 stop(_State) ->
     ok.

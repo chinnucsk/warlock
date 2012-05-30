@@ -1,5 +1,5 @@
 
--module(dlock_sup).
+-module(consensus_sup).
 
 -behaviour(supervisor).
 
