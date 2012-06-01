@@ -4,30 +4,33 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc DB wrapper, interface for DB requests
+%%% @doc Utility functions
 %%%
-%%% The DB module consists of a supervised worker that manages and runs
-%%% commands on the specified backend
+%%% The Server module consists of a supervised worker that runs
+%%% commands on the local DB as per consensus
 %%% @end
 %%%
-%%% @since : 30 May 2012
+%%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(db).
+-module(server_util).
 
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([ping/0, get/1, put/2, delete/1]).
+-export().
+
+%%TODO
 
 %% -----------------------------------------------------------------
 %% Private macros
 %% -----------------------------------------------------------------
--define(WORKER, db_worker).
+-define(WORKER, server_worker).
 -define(CALL_WORKER(Cmd), try gen_server:call(?WORKER, Cmd)
                           catch
                               exit:{timeout, _} -> {error, timeout}
                           end).
+-define(CAST_WORKER(Cmd), gen_server:cast(?WORKER, Cmd)).
 
 %% -----------------------------------------------------------------
 %% Public functions
@@ -35,7 +38,7 @@
 
 %%-------------------------------------------------------------------
 %% @doc
-%% Check if DB is up.
+%% Check if the server is up.
 %%-------------------------------------------------------------------
 -spec ping() -> pong | pang.
 ping() ->

@@ -9,7 +9,7 @@
 %%% Backend implementation in ETS 
 %%% @end
 %%%
-%%% @since : 30 May 2012 by Wooga GmbH
+%%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
 -module(db_ets_backend).

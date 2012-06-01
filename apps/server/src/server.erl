@@ -4,38 +4,57 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc DB wrapper, interface for DB requests
+%%% @doc Server wrapper, interface for handling server requests
 %%%
-%%% The DB module consists of a supervised worker that manages and runs
-%%% commands on the specified backend
+%%% The Server module consists of a supervised worker that runs
+%%% commands on the local DB as per consensus
 %%% @end
 %%%
-%%% @since : 30 May 2012
+%%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(db).
+-module(server).
 
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([ping/0, get/1, put/2, delete/1]).
+-export().
 
 %% -----------------------------------------------------------------
 %% Private macros
 %% -----------------------------------------------------------------
--define(WORKER, db_worker).
+-define(WORKER, server_worker).
 -define(CALL_WORKER(Cmd), try gen_server:call(?WORKER, Cmd)
                           catch
                               exit:{timeout, _} -> {error, timeout}
                           end).
+-define(CAST_WORKER(Cmd), gen_server:cast(?WORKER, Cmd)).
 
 %% -----------------------------------------------------------------
 %% Public functions
 %% -----------------------------------------------------------------
 
+%{{Command, Data}, {Callback, Args}}
+
 %%-------------------------------------------------------------------
 %% @doc
-%% Check if DB is up.
+%% This is the first connection from the client
+%% Send data about the cluster to the client
+%%-------------------------------------------------------------------
+connect() ->
+    ?CALL_WORKER(connect).
+
+
+
+
+
+
+
+
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Check if the server is up.
 %%-------------------------------------------------------------------
 -spec ping() -> pong | pang.
 ping() ->

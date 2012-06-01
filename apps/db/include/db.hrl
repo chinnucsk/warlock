@@ -7,7 +7,7 @@
 %%% @doc DB app level config settings 
 %%% @end
 %%%
-%%% @since : 30 May 2012 by Wooga GmbH
+%%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
 

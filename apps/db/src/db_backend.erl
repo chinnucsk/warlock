@@ -9,7 +9,7 @@
 %%% Behaviour for defining different types of backend
 %%% @end
 %%%
-%%% @since : 30 May 2012 by Wooga GmbH
+%%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
 -module(db_backend).

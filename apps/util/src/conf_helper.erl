@@ -9,7 +9,7 @@
 %%% Helper functions module to get config values 
 %%% @end
 %%%
-%%% @since : 30 May 2012 by Wooga GmbH
+%%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
 -module(conf_helper).
