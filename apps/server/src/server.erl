@@ -8,17 +8,28 @@
 %%%
 %%% The Server module consists of a supervised worker that runs
 %%% commands on the local DB as per consensus
+%%%
+%%% How a request is handled
+%%% 1. A command is constructed based on the request (command_worker)
+%%% 2. Command is passed on to the consensus module
+%%% 3. Consensus module gets agreement based on the client
+%%% 4. The callback function (part of command) is called by consensus module
+%%% 5. If reply required, the master replies
+%%%
 %%% @end
 %%%
 %%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
+%% TODO: Cluster setup functions
+%% TODO: Write specs
 -module(server).
 
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export().
+-export([ping/0, ping_service/0, ping_backend/0,
+         get/1, set/2, del/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -34,49 +45,58 @@
 %% Public functions
 %% -----------------------------------------------------------------
 
-%{{Command, Data}, {Callback, Args}}
-
 %%-------------------------------------------------------------------
 %% @doc
-%% This is the first connection from the client
-%% Send data about the cluster to the client
-%%-------------------------------------------------------------------
-connect() ->
-    ?CALL_WORKER(connect).
-
-
-
-
-
-
-
-
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Check if the server is up.
+%% Check if this server is up.
 %%-------------------------------------------------------------------
 -spec ping() -> pong | pang.
 ping() ->
-    ?CALL_WORKER(ping).
+    pong.
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Check if the service(cluster) is up.
+%%-------------------------------------------------------------------
+-spec ping_service() -> pong | pang.
+ping_service() ->
+    % TODO: Check implementation
+    consensus:ping().
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Check if the backend for this server is up.
+%%-------------------------------------------------------------------
+-spec ping_backend() -> pong | pang.
+ping_backend() ->
+    db:ping().
 
 %%-------------------------------------------------------------------
 %% @doc
 %% Get a value from the DB.
 %%-------------------------------------------------------------------
 get(Key) ->
-    ?CALL_WORKER({get, Key}).
-    
+    spawncall_worker(get, Key).
+
 %%-------------------------------------------------------------------
 %% @doc
 %% Store an object in the database.
 %%-------------------------------------------------------------------
-put(Key, Value) ->
-    ?CALL_WORKER({put, {Key, Value}}).
+set(Key, Value) ->
+    spawncall_worker(set, {Key, Value}).
 
 %%-------------------------------------------------------------------
 %% @doc
 %% Deletes object with given key from the database.
 %%-------------------------------------------------------------------
-delete(Key) ->
-    ?CALL_WORKER({delete, Key}).
+del(Key) ->
+    spawncall_worker(del, Key).
+
+%% ------------------------------------------------------------------
+%% Internal Function Definitions
+%% ------------------------------------------------------------------
+
+%% TODO: Check if there is a usecase where we need cast worker
+spawncall_worker(Cmd, Data) ->
+    WorkerType = server_util:get_type(Cmd),
+    {ok, Worker} = server_command_sup:create_worker(WorkerType),
+    gen_server:call(Worker, {request, {Cmd, Data}}).

@@ -1,28 +1,28 @@
-%%% CURRENTLY NOT USED
-
 %%%-------------------------------------------------------------------
 %%% @copyright
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Server worker
+%%% @doc Server Command worker
 %%%
-%%% Manages requests and replies with the caller
-%%% Uses server_command_worker for each command and waits for it to get back
+%%% With respect to "Paxos made moderately complex", we do not have separate
+%%% client id and operation id since the pid of this process defines both
+%%% uniquely
 %%%
 %%% @end
 %%%
-%%% @since : 30 May 2012
+%%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(server_worker).
+%% TODO: Add retry logic? (in case of timeout)
+-module(server_command_worker).
 -behaviour(gen_server).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0]).
+-export([start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -33,59 +33,61 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
--include_lib("server.hrl").
+-include("server.hrl").
 
-%% gen_server State
 -record(state, {
+            % The operation that is to be performed on the server
+            % Currently not being used
+            % TODO: Remove if not needed
+            operation,
+
+            % PID of the process calling the client
+            % We reply to this once we get a response for the server
+            caller
 }).
 
--define(SPAWN_CHILD(Cmd, CmdData), server_command_sup:create_worker({get_type(Cmd), CmdData})).
+%% How long the process waits for the reply from consensus module
+-define(TIMEOUT, 2000).
+
+%% Client id: To be sent as part of the request
+-define(CID, self()).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+start_link([]) ->
+    gen_server:start_link(?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
-init(no_arg) ->
-    {ok, #state{}}.
+
+%% ------------------------------------------------------------------
+%% Initialize gen_server
+%% ------------------------------------------------------------------
+init([]) ->
+    {ok, #state{}, ?TIMEOUT}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
-%% Ping for local gen_server
-handle_call(ping, _From, State) ->
-    {reply, pong, State};
-%% Ping check if consensus cluster is up
-handle_call(ping_service, _From, State) ->
-    Reply = consensus:ping(),
-    {reply, Reply, State};
-%% Pick check if local backend is up
-handle_call(ping_backend, _From, State) ->
-    Reply = db:ping(),
-    {reply, Reply, State};
-%% Handle command
-handle_call([Command | Data], From, State)
-  when Command == get;
-       Command == set;
-       Command == del ->
-
-
-{Type, {Operation, From}=WorkerArgs}
-
-
-
-
-
-%% Unknown command
+%% Request is sent by server
+%% TODO: Responsible for executing one command. Make sure it does not
+%% accept other commands
+handle_call({request, {Cmd, Data}}, From, _State) ->
+    Operation = get_operation({Cmd, Data, ?CID}),
+    consensus_client:propose(Operation),
+    {noreply, #state{operation=Operation, caller=From}};
+%% Response is sent by consensus client
+handle_call({response, Result}, _From, #state{caller=Caller} = State) ->
+    % Reply to the original caller
+    gen_server:reply(Caller, Result),
+    % Reply to the proc sending the response and then stop
+    Reply = ok,
+    {stop, normal, Reply, State};
 handle_call(_Request, _From, State) ->
-    Reply = {error, unknown_command},
+    Reply = ok,
     {reply, Reply, State}.
-
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
@@ -113,3 +115,12 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+
+get_operation({Cmd, Data, ClientId}) ->
+    #dop{
+         type = server_util:get_type(Cmd),
+         module = server_callback,
+         function = handle,
+         args = [Cmd, Data],
+         client = ClientId
+         }.

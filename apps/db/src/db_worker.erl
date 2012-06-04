@@ -64,6 +64,7 @@ init(no_arg) ->
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
 %% Check if the client is up
+%%TODO: is the name "Client" appropriate here, or server
 handle_call(ping, _From, 
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:ping(Client),

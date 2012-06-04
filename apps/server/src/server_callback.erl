@@ -4,45 +4,33 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Utility functions
+%%% @doc Server callback
+%%%
+%%% The consensus module calls this module
 %%% @end
 %%%
-%%% @since : 01 June 2012
+%%% @since : 04 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(server_util).
+-module(server_callback).
 
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([get_type/1, get_clientid/1]).
+-export([]).
 
 %% -----------------------------------------------------------------
-%% Include files and private macros
+%% Private macros
 %% -----------------------------------------------------------------
--include("server.hrl").
 
 %% -----------------------------------------------------------------
 %% Public functions
 %% -----------------------------------------------------------------
 
-%%-------------------------------------------------------------------
-%% @doc
-%% Get the type for the given command
-%%-------------------------------------------------------------------
-get_type(Cmd) ->
-    case Cmd of
-        get ->
-            read;
-        set ->
-            write;
-        del ->
-            write
-    end.
+handle([Command, Data], ClientId)
 
 %%-------------------------------------------------------------------
 %% @doc
-%% Get client id from the operation
+%% This is the first connection from the client
+%% Send data about the cluster to the client
 %%-------------------------------------------------------------------
-get_clientid(#dop{client=Client}) ->
-    Client.

@@ -1,22 +1,18 @@
-%%% CURRENTLY NOT USED
-
 %%%-------------------------------------------------------------------
 %%% @copyright
 %%% @end
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Server worker
+%%% @doc Consensus State Manager
 %%%
-%%% Manages requests and replies with the caller
-%%% Uses server_command_worker for each command and waits for it to get back
-%%%
+%%% Managers the consensus state of the node
 %%% @end
 %%%
-%%% @since : 30 May 2012
+%%% @since : 04 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(server_worker).
+-module(consensus_state_manager).
 -behaviour(gen_server).
 
 %% ------------------------------------------------------------------
@@ -33,14 +29,10 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
--include_lib("server.hrl").
 
 %% gen_server State
 -record(state, {
 }).
-
--define(SPAWN_CHILD(Cmd, CmdData), server_command_sup:create_worker({get_type(Cmd), CmdData})).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -57,31 +49,6 @@ init(no_arg) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
-%% Ping for local gen_server
-handle_call(ping, _From, State) ->
-    {reply, pong, State};
-%% Ping check if consensus cluster is up
-handle_call(ping_service, _From, State) ->
-    Reply = consensus:ping(),
-    {reply, Reply, State};
-%% Pick check if local backend is up
-handle_call(ping_backend, _From, State) ->
-    Reply = db:ping(),
-    {reply, Reply, State};
-%% Handle command
-handle_call([Command | Data], From, State)
-  when Command == get;
-       Command == set;
-       Command == del ->
-
-
-{Type, {Operation, From}=WorkerArgs}
-
-
-
-
-
-%% Unknown command
 handle_call(_Request, _From, State) ->
     Reply = {error, unknown_command},
     {reply, Reply, State}.
