@@ -24,7 +24,7 @@
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
 %% ------------------------------------------------------------------
--export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, 
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2,
          code_change/3]).
 
 %% --------------------------------------------------------------------
@@ -36,7 +36,7 @@
 -record(state, {
             %% The backend module used
             module,
-            
+
             %% Client to the backend module
             client
 }).
@@ -65,22 +65,22 @@ init(no_arg) ->
 %% ------------------------------------------------------------------
 %% Check if the client is up
 %%TODO: is the name "Client" appropriate here, or server
-handle_call(ping, _From, 
+handle_call(ping, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:ping(Client),
     {reply, Reply, State};
 %% GET object
-handle_call({get, Key}, _From, 
+handle_call({get, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:get(Key, Client),
     {reply, Reply, State};
-%% PUT value for given key
-handle_call({put, {Key, Value}}, _From, 
+%% SET value for given key
+handle_call({set, {Key, Value}}, _From,
             #state{module=Backend, client=Client} = State) ->
-    Reply = Backend:put(Key, Value, Client),
+    Reply = Backend:set(Key, Value, Client),
     {reply, Reply, State};
 %% DELETE object
-handle_call({delete, Key}, _From, 
+handle_call({delete, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:delete(Key, Client),
     {reply, Reply, State};

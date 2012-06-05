@@ -6,60 +6,143 @@
 %%%
 %%% @doc Consensus State
 %%%
-%%% Records that defines the state of this node in the consensus cluster
-%%% Exists as separate module since it is to be exchanged between nodes
-%%%
+%%% Wraps the consensus state of the node. Uses ETS internally.
 %%% @end
 %%%
 %%% @since : 04 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
+%% TODO: Write specs
 -module(consensus_state).
 
-%% -----------------------------------------------------------------
-%% Public interface
-%% -----------------------------------------------------------------
--export([]).
+%% ------------------------------------------------------------------
+%% API Function Exports
+%% ------------------------------------------------------------------
+-export([new/0,
+         get_members/0, set_members/1,
+         get_master/0, set_master/1, is_master/0, get_valid_master/0
+        ]).
 
-%% -----------------------------------------------------------------
-%% Private macros
-%% -----------------------------------------------------------------
+%% --------------------------------------------------------------------
+%% Include files and macros
+%% --------------------------------------------------------------------
+-define(NODE, node()).
 
-%% State of the node and cluster
--record(ncstate, {
-              %% Current node
-              nodename :: {node(), member_status()},
+-define(INITIAL_STATUS, {valid, election}).
 
-              %% Members of the cluster
-              members :: [{node(), member_status()}],
+%% Master state is in the format of {node(), lease()}
+-define(INITIAL_MASTER, {none, none}).
 
-              %% Leader node
-              leader :: {node(), lease()},
+%% Time window before lease expiry we disallow master requests
+%% To be tuned as per clock drift rate
+-define(MIN_LEASE, 100000). % In microseconds, 0.1s
 
-              %% Leader election FSM state
-              fsm_state :: fsm_state()
-}).
+%% Name of the ets table
+-define(STATE, cons_state).
+
+%% The possible states of the master election FSM
+%% A node can either be a master, a member or in election
+%-type fsm_state() :: election | master | member.
+
+%% Lease is a time in the future, until which the master has lease
+%-type lease() :: {Megaseconds::Integer,
+%                  Seconds::Integer,
+%                  Microseconds::Integer}.
 
 %% Type of members
 %% valid - Node is part of the cluster
 %% invalid - Node is removed the the cluster and is to be ignored
 %% joining - Node is trying to join the cluster
--type member_status() :: valid | invalid | joining.
+%% Second parameter used for fine grained status
+%-type member_status() ::
+%          {valid, election} |
+%          {valid, member} |
+%          {valid, master} |
+%          {valid, unknown} |
+%          {invalid, unknown} |
+%          {joining, unknown}.
 
-%% Lease is a time in the future, until which the master has lease
--type lease() :: {Megaseconds::Integer,
-                  Seconds::Integer,
-                  Microseconds::Integer}.
-
-%% The possible states of the leader election FSM
-%% A node can either be a leader, a member or in election
--type fsm_state() :: election | leader | member.
-
-%% -----------------------------------------------------------------
+%% ------------------------------------------------------------------
 %% Public functions
-%% -----------------------------------------------------------------
+%% ------------------------------------------------------------------
+new() ->
+    ets:new(?STATE, [set, named_table]),
+    initialize().
+
+get_members() ->
+    get_state(members).
+
+set_members(Members) ->
+    set(members, Members).
+
+get_master() ->
+    {Master, _Lease} = get_state(master),
+    Master.
+
+get_valid_master() ->
+    {Master, Lease} = get_state(master),
+    case is_lease_valid(Lease) of
+        true ->
+            Master;
+        false ->
+            {error, no_master}
+    end.
+
+set_master(Master) ->
+    set(master, Master).
+
+% Check if current node is the master
+is_master() ->
+    catch check_master().
 
 %% ------------------------------------------------------------------
-%% Internal Function Definitions
+%% Internal function
 %% ------------------------------------------------------------------
 
+%% Initialize all keys in the state
+initialize() ->
+    Objs = [
+        %% Name of the current node and its status
+        {node, {?NODE, ?INITIAL_STATUS}},
+        %% Members of the cluster
+        {members, [{?NODE, ?INITIAL_STATUS}]},
+        %% Master node of the cluster
+        {master, ?INITIAL_MASTER}],
+    ets:insert(?STATE, Objs).
+
+get_state(Key) ->
+    {Key, Val} = ets:lookup(?STATE, Key),
+    Val.
+
+set(Key, Value) ->
+    ets:insert(?STATE, {Key, Value}).
+
+check_master() ->
+    {Node, NodeStatus} = ?MODULE:get(node),
+    {Master, Lease} = ?MODULE:get(master),
+
+    case NodeStatus of
+        {valid, master} ->
+            ok;
+        _ ->
+            throw(false)
+    end,
+
+    case Node =:= Master of
+        true ->
+            ok;
+        _ ->
+            throw(false)
+    end,
+
+    case is_lease_valid(Lease) of
+        true ->
+            ok;
+        false ->
+            throw(false)
+    end,
+
+    true.
+
+is_lease_valid(Lease) ->
+    timer:now_diff(erlang:now(), Lease) > ?MIN_LEASE.

@@ -16,7 +16,7 @@
           %% Type of operation determine what has to be done
           %% The selective execution is done by the consensus "client"
           %% read, write
-          %% TODO: TYPE of command. Use someth
+          %% TODO: TYPE of command. Use something else?
           type,
 
           %% Usually server_callback

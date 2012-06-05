@@ -69,18 +69,15 @@ handle_call(ping_backend, _From, State) ->
     Reply = db:ping(),
     {reply, Reply, State};
 %% Handle command
-handle_call([Command | Data], From, State)
+handle_call([Command | _Data], _From, State)
   when Command == get;
        Command == set;
        Command == del ->
 
 
-{Type, {Operation, From}=WorkerArgs}
-
-
-
-
-
+% TODO
+%{Type, {Operation, From}=WorkerArgs}
+    {reply, ok, State};
 %% Unknown command
 handle_call(_Request, _From, State) ->
     Reply = {error, unknown_command},

@@ -17,7 +17,7 @@
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([]).
+-export([handle/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -27,10 +27,18 @@
 %% Public functions
 %% -----------------------------------------------------------------
 
-handle([Command, Data], ClientId)
+%% Callback function is of the format [Command, Data]
+handle([get, Key]) ->
+    db:get(Key);
+handle([set, {Key, Value}]) ->
+    db:set(Key, Value);
+handle([del, Key]) ->
+    db:del(Key).
+
 
 %%-------------------------------------------------------------------
-%% @doc
 %% This is the first connection from the client
 %% Send data about the cluster to the client
 %%-------------------------------------------------------------------
+
+% TODO: Implement this

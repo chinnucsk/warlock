@@ -78,19 +78,18 @@ handle_call({request, {Cmd, Data}}, From, _State) ->
     Operation = get_operation({Cmd, Data, ?CID}),
     consensus_client:propose(Operation),
     {noreply, #state{operation=Operation, caller=From}};
-%% Response is sent by consensus client
-handle_call({response, Result}, _From, #state{caller=Caller} = State) ->
-    % Reply to the original caller
-    gen_server:reply(Caller, Result),
-    % Reply to the proc sending the response and then stop
-    Reply = ok,
-    {stop, normal, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
+%% Response is sent by consensus client
+handle_cast({response, Result}, #state{caller=Caller} = State) ->
+    % Reply to the original caller
+    gen_server:reply(Caller, Result),
+    % Shutdown normally
+    {stop, normal, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
