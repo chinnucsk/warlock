@@ -58,7 +58,7 @@ get_add(Target) ->
         master_replica ->
             Master = consensus_state:get_master(),
             {consensus_replica, Master};
-        _ ->
-            {}
+        Pid ->
+            Pid
     end.
 
