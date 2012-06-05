@@ -29,20 +29,17 @@
 %% Public functions
 %% ------------------------------------------------------------------
 
+%TODO: Rename call & cast to sync, async
 call(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
 
+cast(acceptors=Target, Msg) ->
+    {Name, Nodes} = get_add(Target),
+    gen_server:abcast(Nodes, Name, Msg);
 cast(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:cast(TargetAdd, Msg).
-
-
-
-
-
-
-
 
 %% ------------------------------------------------------------------
 %% Internal function
@@ -58,6 +55,9 @@ get_add(Target) ->
         master_replica ->
             Master = consensus_state:get_master(),
             {consensus_replica, Master};
+        acceptors ->
+            Acceptors = consensus_state:get_members(),
+            {consensus_acceptor, Acceptors};
         Pid ->
             Pid
     end.

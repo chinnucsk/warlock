@@ -4,23 +4,22 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Consensus Acceptor
+%%% @doc Consensus Scout
 %%%
-%%% Paxos acceptor
-%%% Acts as the distributed memory of the consensus service
+%%% Paxos scout
 %%%
 %%% @end
 %%%
 %%% @since : 05 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(consensus_acceptor).
+-module(consensus_scout).
 -behaviour(gen_server).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0]).
+-export([start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -32,19 +31,28 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -record(state, {
-            ballot_num = {0, 0},
+            % The leader that spawned this commander
+            leader,
 
             % Set of pvalues where
             % pvalue = {Ballot number, Slot number, Proposal}
-            accepted = sets:new()
+            pvalues = sets:new(),
+
+            % Ballot number
+            ballot_num,
+
+            % Number of acceptors that has agreed for this ballot
+            vote_count
 }).
 
 -define(SELF, self()).
+
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+start_link({Leader, Ballot}) ->
+    gen_server:start_link(?MODULE, [{Leader, Ballot}], []).
+
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -53,8 +61,12 @@ start_link() ->
 %% ------------------------------------------------------------------
 %% Initialize gen_server
 %% ------------------------------------------------------------------
-init([]) ->
-    {ok, #state{}}.
+init([{Leader, Ballot}]) ->
+    % Send a message to  all the acceptors and wait for their response
+    Message = {p1a, {?SELF, Ballot}},
+    consensus_msngr:cast(acceptors, Message),
+    {ok, #state{leader = Leader,
+                ballot_num = Ballot}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -63,40 +75,46 @@ handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
-%% phase 1 a message from some leader
-handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
-                                             accepted = Accepted} = State) ->
-    Ballot = case consensus_util:ballot_greater(LBallot, CurrBallot) of
+%% phase 1 b message from some acceptor
+% TODO: We currently do not check the acceptor identity. Add check to make sure
+% votes are only counted for unique acceptors
+handle_cast({p1b, {_Acceptor, ABallot, APValues}},
+            #state{ballot_num = CurrBallot,
+                   vote_count = VoteCount,
+                   leader = Leader,
+                   pvalues = PValues} = State) ->
+    case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
-            LBallot;
+            NewPValues = sets:union(APValues, PValues),
+            case is_majority(VoteCount) of
+                true ->
+                    Message = {adopted, {ABallot, NewPValues}},
+                    consensus_msngr:cast(Leader, Message),
+                    {stop, normal, State};
+                false ->
+                    NewState = State#state{pvalues = NewPValues,
+                                           vote_count = VoteCount + 1},
+                    {noreply, NewState}
+            end;
         false ->
-            CurrBallot
-    end,
-    NewState = State#state{ballot_num = Ballot},
-    % Response = {p1b, self(), ballot_num, accepted} /From paper
-    Response = {p1b, {?SELF, Ballot, Accepted}},
-    consensus_msngr:cast(Leader, Response),
-    {noreply, NewState};
-%% phase 2 a message from some leader
-handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
-            #state{ballot_num = CurrBallot, accepted = Accepted} = State) ->
-    {Ballot, NewAccepted} =
-        case consensus_util:ballot_greateq(LBallot, CurrBallot) of
-            true ->
-                {LBallot, sets:add_element(PValue, Accepted)};
-        false ->
-            {CurrBallot, Accepted}
-    end,
-    NewState = State#state{ballot_num = Ballot, accepted = NewAccepted},
-    % Response = {p2b, self(); ballot num} /From paper
-    Response = {p2b, {?SELF, Ballot}},
-    consensus_msngr:cast(Leader, Response),
-    {noreply, NewState};
-%% Unknown message
+            % We have another ballot running. Since acceptor will not send any
+            % ballot smaller than what we have, we need not check explicitly.
+            % Added it just to make sure!
+            case consensus_util:ballot_lesser(ABallot, CurrBallot) of
+                true ->
+                    % TODO: Some issue with reason for init. Disable check for now
+%%                     ?LERROR("Logic error! Smaller ballot received, ~p ~p", [ABallot, CurrBallot]),
+%%                     {stop, logic_error, State};
+                    {noreply, State};
+                false ->
+                    % We have a larger ballot; inform leader and exit
+                    consensus_msngr:cast(Leader, {preempted, ABallot}),
+                    {stop, normal, State}
+            end
+    end;
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -121,3 +139,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+
+% Votes > (N/2 + 1)
+is_majority(VoteCount) ->
+    Acceptors = consensus_state:get_members(),
+    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2) + 1).
