@@ -97,6 +97,5 @@ del(Key) ->
 
 %% TODO: Check if there is a usecase where we need cast worker
 spawncall_worker(Cmd, Data) ->
-    WorkerType = server_util:get_type(Cmd),
-    {ok, Worker} = server_command_sup:create_worker(WorkerType),
+    {ok, Worker} = server_command_sup:create(),
     gen_server:call(Worker, {request, {Cmd, Data}}).

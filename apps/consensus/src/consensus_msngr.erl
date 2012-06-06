@@ -34,7 +34,9 @@ call(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
 
-cast(acceptors=Target, Msg) ->
+cast(Target, Msg) when
+  Target == acceptors;
+  Target == replicas ->
     {Name, Nodes} = get_add(Target),
     gen_server:abcast(Nodes, Name, Msg);
 cast(Target, Msg) ->
@@ -58,6 +60,9 @@ get_add(Target) ->
         acceptors ->
             Acceptors = consensus_state:get_members(),
             {consensus_acceptor, Acceptors};
+        replicas ->
+            Replicas = consensus_state:get_members(),
+            {consensus_replica, Replicas};
         Pid ->
             Pid
     end.

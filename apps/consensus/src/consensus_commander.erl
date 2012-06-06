@@ -4,16 +4,16 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Consensus Scout
+%%% @doc Consensus Commander
 %%%
-%%% Paxos scout
+%%% Paxos commander
 %%%
 %%% @end
 %%%
-%%% @since : 05 June 2012
+%%% @since : 06 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(consensus_scout).
+-module(consensus_commander).
 -behaviour(gen_server).
 
 %% ------------------------------------------------------------------
@@ -34,12 +34,8 @@
             % The leader that spawned this commander
             leader,
 
-            % Set of pvalues where
             % pvalue = {Ballot number, Slot number, Proposal}
-            pvalues = sets:new(),
-
-            % Ballot number
-            ballot_num,
+            pvalue,
 
             % Number of acceptors that has agreed for this ballot
             vote_count = 0
@@ -50,8 +46,9 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link({Leader, Ballot}) ->
-    gen_server:start_link(?MODULE, [{Leader, Ballot}], []).
+start_link([{Leader, PValue}]) ->
+    gen_server:start_link(?MODULE,
+                          [{Leader, PValue}], []).
 
 
 %% ------------------------------------------------------------------
@@ -61,12 +58,12 @@ start_link({Leader, Ballot}) ->
 %% ------------------------------------------------------------------
 %% Initialize gen_server
 %% ------------------------------------------------------------------
-init([{Leader, Ballot}]) ->
+init([{Leader, PValue}]) ->
     % Send a message to  all the acceptors and wait for their response
-    Message = {p1a, {?SELF, Ballot}},
+    Message = {p2a, {?SELF, PValue}},
     consensus_msngr:cast(acceptors, Message),
     {ok, #state{leader = Leader,
-                ballot_num = Ballot}}.
+                pvalue = PValue}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -78,25 +75,22 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
-%% phase 1 b message from some acceptor
+%% phase 2 b message from some acceptor
 % TODO: We currently do not check the acceptor identity. Add check to make sure
 % votes are only counted for unique acceptors
-handle_cast({p1b, {_Acceptor, ABallot, APValues}},
-            #state{ballot_num = CurrBallot,
+handle_cast({p2b, {_Acceptor, ABallot}},
+            #state{pvalue = {CurrBallot, Slot, Proposal},
                    vote_count = VoteCount,
-                   leader = Leader,
-                   pvalues = PValues} = State) ->
+                   leader = Leader} = State) ->
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
-            NewPValues = sets:union(APValues, PValues),
             case is_majority(VoteCount) of
                 true ->
-                    Message = {adopted, {ABallot, NewPValues}},
-                    consensus_msngr:cast(Leader, Message),
+                    Message = {decision, {Slot, Proposal}},
+                    consensus_msngr:cast(replicas, Message),
                     {stop, normal, State};
                 false ->
-                    NewState = State#state{pvalues = NewPValues,
-                                           vote_count = VoteCount + 1},
+                    NewState = State#state{vote_count = VoteCount + 1},
                     {noreply, NewState}
             end;
         false ->
@@ -105,8 +99,8 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
             % Added it just to make sure!
             case consensus_util:ballot_lesser(ABallot, CurrBallot) of
                 true ->
-                    % TODO: Some issue with reason for init. Disable check for now
-%%                     ?LERROR("Logic error! Smaller ballot received, ~p ~p", [ABallot, CurrBallot]),
+
+%%                     ?LERROR("Logic error! Smaller ballot received"),
 %%                     {stop, logic_error, State};
                     {noreply, State};
                 false ->

@@ -4,21 +4,21 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Server Command Supervisor
+%%% @doc Consensus Commander Supervisor
 %%%
-%%% Spawns children for every command to be run on the server
+%%% Spawns children for every commander
 %%% @end
 %%%
-%%% @since : 04 June 2012
+%%% @since : 05 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(server_command_sup).
+-module(consensus_commander_sup).
 -behaviour(supervisor).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0, create/0]).
+-export([start_link/0, create/1]).
 
 %% ------------------------------------------------------------------
 %% supervisor Function Exports
@@ -28,7 +28,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--define(WORKER, server_command_worker).
+-define(WORKER, consensus_commander).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -43,8 +43,8 @@ start_link() ->
 %% ------------------------------------------------------------------
 %% create a new worker
 %% ------------------------------------------------------------------
-create() ->
-    supervisor:start_child(?MODULE, []).
+create(Args) ->
+    supervisor:start_child(?MODULE, [Args]).
 
 %% ------------------------------------------------------------------
 %% supervisor callbacks
