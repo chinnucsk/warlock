@@ -6,7 +6,7 @@
 %%%
 %%% @doc DB ETS backend
 %%%
-%%% Backend implementation in ETS 
+%%% Backend implementation in ETS
 %%% @end
 %%%
 %%% @since : 30 May 2012
@@ -20,7 +20,7 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([start/0, start/1, ping/1, get/2, put/3, delete/2]).
+-export([start/0, start/1, ping/1, get/2, set/3, del/2]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
@@ -62,31 +62,30 @@ get(Key, #client{inst=Table}) ->
             {error, unknown}
     end.
 
--spec put(Key::key(), Value::value(), Client::#client{}) -> {ok, success}.
-put(Key, Value, #client{inst=Table}) ->
+-spec set(Key::key(), Value::value(), Client::#client{}) -> {ok, success}.
+set(Key, Value, #client{inst=Table}) ->
     true = ets:insert(Table, {Key, Value}),
     {ok, success}.
 
--spec delete(Key::key(), Client::#client{}) -> {ok, success}.
-delete(Key, #client{inst=Table}) ->
+-spec del(Key::key(), Client::#client{}) -> {ok, success}.
+del(Key, #client{inst=Table}) ->
     true = ets:delete(Table, Key),
     {ok, success}.
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -30,6 +30,8 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
+
 -record(state, {
             % The leader that spawned this commander
             leader,
@@ -46,9 +48,8 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link([{Leader, PValue}]) ->
-    gen_server:start_link(?MODULE,
-                          [{Leader, PValue}], []).
+start_link({Leader, PValue}) ->
+    gen_server:start_link(?MODULE, [{Leader, PValue}], []).
 
 
 %% ------------------------------------------------------------------
@@ -59,6 +60,8 @@ start_link([{Leader, PValue}]) ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([{Leader, PValue}]) ->
+    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+
     % Send a message to  all the acceptors and wait for their response
     Message = {p2a, {?SELF, PValue}},
     consensus_msngr:cast(acceptors, Message),
@@ -82,9 +85,10 @@ handle_cast({p2b, {_Acceptor, ABallot}},
             #state{pvalue = {CurrBallot, Slot, Proposal},
                    vote_count = VoteCount,
                    leader = Leader} = State) ->
+    ?LINFO("Received message ~p", [{p2b, {_Acceptor, ABallot}}]),
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
-            case is_majority(VoteCount) of
+            case is_majority(VoteCount + 1) of
                 true ->
                     Message = {decision, {Slot, Proposal}},
                     consensus_msngr:cast(replicas, Message),
@@ -137,4 +141,4 @@ code_change(_OldVsn, State, _Extra) ->
 % Votes > (N/2 + 1)
 is_majority(VoteCount) ->
     Acceptors = consensus_state:get_members(),
-    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2) + 1).
+    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2)).

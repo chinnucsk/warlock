@@ -16,13 +16,16 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([new/0, set/3, get/2, del/2, to_list/1]).
+-export([new/0, del/1, set/3, get/2, del/2, to_list/1]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
 %% ------------------------------------------------------------------
 new() ->
     ets:new(ht, []).
+
+del(Table) ->
+    ets:delete(Table).
 
 set(Key, Value, Table) ->
     ets:insert(Table, {Key, Value}),
@@ -31,11 +34,11 @@ set(Key, Value, Table) ->
 get(Key, Table) ->
     case ets:lookup(Table, Key) of
         [] ->
-            {ok, not_found};
+            not_found;
         [{Key, Value}] ->
-            {ok, Value};
+            Value;
         _ ->
-            {error, unknown_object}
+            error
     end.
 
 del(Key, Table) ->

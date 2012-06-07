@@ -6,7 +6,7 @@
 %%%
 %%% @doc Config Helper
 %%%
-%%% Helper functions module to get config values 
+%%% Helper functions module to get config values
 %%% @end
 %%%
 %%% @since : 30 May 2012
@@ -14,6 +14,9 @@
 %%%-------------------------------------------------------------------
 -module(conf_helper).
 
+%% ------------------------------------------------------------------
+%% Include files
+%% ------------------------------------------------------------------
 -include("config.hrl").
 
 %% ------------------------------------------------------------------
@@ -39,12 +42,19 @@ get(Key, Group, Default) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-%% TODO: Find a solution for the config file problem
+%% TODO: Find a better solution for the config file problem
 get_all() ->
     File = case code:priv_dir(?APP) of
         {error,bad_name} ->
             % Assuming the app is being run from the app folder
-            "../../priv/dlock.term";
+            AppFile = "../../priv/dlock.term",
+            case filelib:is_file(AppFile) of
+                true ->
+                    AppFile;
+                % For running EUnit tests
+                false ->
+                    "../../../priv/dlock.term"
+            end;
         Priv ->
             filename:join([Priv, "dlock.term"])
     end,

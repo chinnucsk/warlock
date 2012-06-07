@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -30,6 +30,8 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
+
 -record(state, {
             % Replicated transaction log
             % The log is appended once consensus is reached
@@ -58,8 +60,8 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link([]) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -69,10 +71,8 @@ start_link([]) ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
-    TLog = util_ht:new(),
-    Proposals = util_bht:new(),
-    Decisions = Proposals,
-    {ok, #state{tlog=TLog, proposals=Proposals, decisions=Decisions}}.
+    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    {ok, #state{}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -86,24 +86,26 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 % Request sent from client
 handle_cast({request, Proposal}, State) ->
+    ?LINFO("Received message ~p", [{request, Proposal}]),
     NewState = propose(Proposal, State),
     {noreply, NewState};
 %% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
             #state{decisions = Decisions} = State) ->
+    ?LINFO("Received message ~p", [{decision, {Slot, Proposal}}]),
     % Add the decision to the set of decisions
 
     % A safety check to see if this is a duplicate decision
     % TODO: If someone is re-proposing a request that is in decision, should we
     % reply to them?
-    case util_ht:valget(Proposal, Decisions) of
-        {ok, not_found} ->
+    case util_bht:valget(Proposal, Decisions) of
+        not_found ->
             % Save the decision
-            util_ht:set(Slot, Proposal, Decisions),
+            util_bht:set(Slot, Proposal, Decisions),
             % Go though decisions and update state if needed
             NewState = check_decisions(State),
             {noreply, NewState};
-        {ok, _} ->
+        _ ->
             {noreply, State}
     end;
 handle_cast(_Msg, State) ->
@@ -139,8 +141,8 @@ propose(Proposal, #state{proposals = Proposals,
         % We haven't seen this proposal before
         % Get the next available slot number, add it to proposals and
         % Let master know about it
-        {ok, not_found} ->
-            util_ht:set(MinSlot, Proposal, Proposals),
+        not_found ->
+            util_bht:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
             consensus_msngr:cast(leader, Message),
             NewMinSlot = MinSlot + 1,
@@ -153,6 +155,7 @@ propose(Proposal, #state{proposals = Proposals,
 % Executes the decision for the specified slot
 perform(Proposal, #state{slot_num = CurrSlot,
                          tlog = TLog} = State) ->
+    ?LINFO("Performing proposal ~p", [Proposal]),
     % Add a new entry in transaction log
     util_ht:set(CurrSlot, Proposal, TLog),
     % Let the consensus client handle the callback execution
@@ -165,26 +168,26 @@ check_decisions(#state{proposals = Proposals,
                        decisions = Decisions,
                        slot_num = CurrSlot} = State) ->
     % Check if we have a decision for the current slot
-    case util_ht:keyget(CurrSlot, Decisions) of
+    case util_bht:keyget(CurrSlot, Decisions) of
         % No decision for the current slot, nothing to change
-        {ok, not_found} ->
+        not_found ->
             State;
         % We have a decision for the current slot
-        {ok, CurrDecision} ->
+        CurrDecision ->
             % Check if we have a proposal for this slot
-            case util_ht:keyget(CurrSlot, Proposals) of
+            case util_bht:keyget(CurrSlot, Proposals) of
                 % We dont have a proposal for this slot
                 % Execute the decision for this slot and continue
-                {ok, not_found} ->
+                not_found ->
                     NewState = perform(CurrDecision, State),
                     check_decisions(NewState);
                 % We have a proposal and it is the same as the decision
-                {ok, CurrDecision} ->
+                CurrDecision ->
                     NewState = perform(CurrDecision, State),
                     % We might have more decisions, check again
                     check_decisions(NewState);
                 % We have a proposal, but it is different from the decision
-                {ok, AltProposal} ->
+                AltProposal ->
                     % Re-propose it
                     UpdState = propose(AltProposal, State),
                     % Execute the decision

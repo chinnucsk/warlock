@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -29,7 +29,9 @@
 
 %% --------------------------------------------------------------------
 %% Include files and macros
-%% --------------------------------------------------------------------
+%% -------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
+
 -define(SELF, self()).
 -define(FIRST_BALLOT, {0, ?SELF}).
 
@@ -48,8 +50,8 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
-start_link([]) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+start_link() ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -59,6 +61,8 @@ start_link([]) ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
+    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+
     % Spawn scout with the first ballot
     consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
     {ok, #state{}}.
@@ -79,9 +83,12 @@ handle_cast({propose, {Slot, Proposal}},
             #state{proposals = Proposals,
                    active = Active,
                    ballot_num = Ballot} = State) ->
+    ?LINFO("Received message ~p", [{propose, {Slot, Proposal}}]),
     % Add the proposal if we do not have a command for the proposed spot
+    ?LINFO("Leader state ~p", [State]),
+    ?LINFO("util_ht:get(~p, ~p) ~p", [Slot, Proposals, Proposal]),
     case util_ht:get(Slot, Proposals) of
-        {ok, not_found} ->
+        not_found ->
             % Note: we could make Slot as the key (better performance), but just
             % following similar structure as replica to keep things consistent
             util_ht:set(Slot, Proposal, Proposals),
@@ -92,7 +99,7 @@ handle_cast({propose, {Slot, Proposal}},
                 false ->
                     ok
             end;
-        {ok, _Proposal} ->
+        _Proposal ->
             ok
     end,
     {noreply, State};
@@ -102,6 +109,8 @@ handle_cast({propose, {Slot, Proposal}},
 handle_cast({adopted, {CurrBallot, PValues}},
             #state{proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
+    ?LINFO("Received message ~p", [{adopted, {CurrBallot, PValues}}]),
+
     % Get all the proposals in PValues with max ballot number and update our
     % proposals with this data
     Pmax = pmax(PValues),
@@ -112,6 +121,8 @@ handle_cast({adopted, {CurrBallot, PValues}},
 %% preempted message sent by either a scout or a commander, it means that some
 %% acceptor has adopted some other ballot
 handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
+    ?LINFO("Received message ~p", [{preempted, ABallot}]),
+
     % If the new ballot number is bigger, increase ballot number and scout for
     % the next adoption
     NewBallot = case consensus_util:ballot_greater(ABallot, CurrBallot) of

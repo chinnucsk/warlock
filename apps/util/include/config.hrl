@@ -4,7 +4,7 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Project level config settings 
+%%% @doc Project level config settings
 %%% @end
 %%%
 %%% @since : 30 May 2012
@@ -16,13 +16,11 @@
 -define(APP, dlock).
 
 %% Macro for debugging code
-
 -ifndef(PRINT).
 -define(PRINT(Var), io:format("DEBUG: ~p:~p - ~p~n~n ~p~n~n", [?MODULE, ?LINE, ??Var, Var])).
 -endif.
 
 %% Macro for timing code sections
-
 -ifndef(TIMEON).
 % Yes, these need to be on a single line to work...
 -define(TIMEON, erlang:put(debug_timer, [now()|case erlang:get(debug_timer) == undefined of true -> []; false -> erlang:get(debug_timer) end])).
@@ -30,7 +28,6 @@
 -endif.
 
 %% Logging macros
-
 -define(LDEBUG(Msg),
     lager:debug(Msg)).
 -define(LDEBUG(Msg, Args),
@@ -74,19 +71,3 @@
 
 %% Record definitions
 
--record(dlock_backend_client, {
-                           %% Type of the client
-                           type,
-             
-                           %% Instance of the client
-                           inst
-}).
-
--record(dlock_op, {
-               %% Type of operation :: read, write 
-               %% TODO: More types?
-               type,
-               
-               %% Actual operation
-               op
-}).

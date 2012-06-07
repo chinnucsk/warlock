@@ -18,7 +18,7 @@
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([ping/0, get/1, set/2, delete/1]).
+-export([ping/0, get/1, set/1, del/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -52,12 +52,12 @@ get(Key) ->
 %% @doc
 %% Store an object in the database.
 %%-------------------------------------------------------------------
-set(Key, Value) ->
+set([Key, Value]) ->
     ?CALL_WORKER({set, {Key, Value}}).
 
 %%-------------------------------------------------------------------
 %% @doc
 %% Deletes object with given key from the database.
 %%-------------------------------------------------------------------
-delete(Key) ->
-    ?CALL_WORKER({delete, Key}).
+del(Key) ->
+    ?CALL_WORKER({del, Key}).

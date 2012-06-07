@@ -31,6 +31,7 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
+-include("db.hrl").
 
 %% gen_server State
 -record(state, {
@@ -57,7 +58,8 @@ ping() ->
 %% ------------------------------------------------------------------
 init(no_arg) ->
     Backend = conf_helper:get(backend, ?APP),
-    {ok, Client} = Backend:start(),
+    Name = conf_helper:get(name, Backend),
+    Client = #client{inst=Name},
     {ok, #state{module=Backend, client=Client}}.
 
 %% ------------------------------------------------------------------
@@ -80,15 +82,14 @@ handle_call({set, {Key, Value}}, _From,
     Reply = Backend:set(Key, Value, Client),
     {reply, Reply, State};
 %% DELETE object
-handle_call({delete, Key}, _From,
+handle_call({del, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
-    Reply = Backend:delete(Key, Client),
+    Reply = Backend:del(Key, Client),
     {reply, Reply, State};
 %% Unknown command
 handle_call(_Request, _From, State) ->
     Reply = {error, unknown_command},
     {reply, Reply, State}.
-
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2

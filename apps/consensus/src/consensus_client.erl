@@ -28,6 +28,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
 -include_lib("server/include/server.hrl").
 
 %% ------------------------------------------------------------------
@@ -50,6 +51,7 @@ exec(#dop{type = Type,
           function = F,
           args = A,
           client = Client} = _Operation) ->
+    ?LINFO("Executing operation"),
     case Type of
         % Only master needs to respond to reads
         read ->
@@ -71,4 +73,5 @@ exec(#dop{type = Type,
 exec(M, F, A, Client) ->
     Result = M:F(A),
     Response = {response, Result},
+    ?LINFO("RESULT ==>> ~p", [Result]),
     consensus_msngr:cast(Client, Response).

@@ -30,6 +30,8 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
+
 -record(state, {
             % The leader that spawned this commander
             leader,
@@ -62,6 +64,8 @@ start_link({Leader, Ballot}) ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([{Leader, Ballot}]) ->
+    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+
     % Send a message to  all the acceptors and wait for their response
     Message = {p1a, {?SELF, Ballot}},
     consensus_msngr:cast(acceptors, Message),
@@ -86,10 +90,11 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
                    vote_count = VoteCount,
                    leader = Leader,
                    pvalues = PValues} = State) ->
+    ?LINFO("Received message ~p", [{p1b, {_Acceptor, ABallot, APValues}}]),
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
             NewPValues = sets:union(APValues, PValues),
-            case is_majority(VoteCount) of
+            case is_majority(VoteCount + 1) of
                 true ->
                     Message = {adopted, {ABallot, NewPValues}},
                     consensus_msngr:cast(Leader, Message),
@@ -143,4 +148,4 @@ code_change(_OldVsn, State, _Extra) ->
 % Votes > (N/2 + 1)
 is_majority(VoteCount) ->
     Acceptors = consensus_state:get_members(),
-    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2) + 1).
+    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2)).

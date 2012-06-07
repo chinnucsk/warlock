@@ -4,21 +4,19 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc Consensus Scout Supervisor
-%%%
-%%% Spawns children for every scout
+%%% @doc Consensus Leader Supervisor
 %%% @end
 %%%
-%%% @since : 05 June 2012
+%%% @since : 06 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(consensus_scout_sup).
+-module(consensus_leader_sup).
 -behaviour(supervisor).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0, create/1]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% supervisor Function Exports
@@ -30,7 +28,7 @@
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
 
--define(WORKER, consensus_scout).
+-define(WORKER, consensus_leader).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -43,12 +41,6 @@ start_link() ->
 %% ------------------------------------------------------------------
 
 %% ------------------------------------------------------------------
-%% create a new worker
-%% ------------------------------------------------------------------
-create(Args) ->
-    supervisor:start_child(?MODULE, [Args]).
-
-%% ------------------------------------------------------------------
 %% supervisor callbacks
 %% ------------------------------------------------------------------
 
@@ -58,9 +50,9 @@ create(Args) ->
 init([]) ->
     ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
 
-    RestartStrategy = simple_one_for_one,
-    MaxRestarts = 0,
-    MaxSecondsBetweenRestarts = 1,
+    RestartStrategy = one_for_one,
+    MaxRestarts = 5,
+    MaxSecondsBetweenRestarts = 10,
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 

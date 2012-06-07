@@ -2,7 +2,7 @@
 
 REBAR=../../rebar
 
-all: small_clean dependencies compile docs
+all: small_clean dependencies compile
 
 docs:
 	$(REBAR) skip_deps=true doc

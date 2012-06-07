@@ -7,7 +7,7 @@
 %%% @doc A bi-diretional hash table using ETS
 %%%
 %%% A simple implementation of a bi-directional hash table using one ETS table.
-%%% We create two entries for one key, value pair.
+%%% We create two entries for one key-value pair.
 %%% @end
 %%%
 %%% @since : 05 June 2012
@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([new/0, set/3, keyget/2, valget/2, del/3, to_list/1]).
+-export([new/0, del/1, set/3, keyget/2, valget/2, del/3, to_list/1]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
@@ -27,26 +27,24 @@
 new() ->
     ets:new(bht, []).
 
-set(K, V, Table) ->
-    Key = {k, K},
-    Val = {v, V},
-    ets:insert(Table, {Key, V}),
-    ets:insert(Table, {Val, K}),
+del(Table) ->
+    ets:delete(Table).
+
+set(Key, Val, Table) ->
+    ets:insert(Table, [{getkey_key(Key), Val},
+                       {getkey_val(Val), Key}]),
     ok.
 
-keyget(K, Table) ->
-    Key = {key, K},
-    get(Key, Table).
+keyget(Key, Table) ->
+    get(getkey_key(Key), Table).
 
-valget(V, Table) ->
-    Val = {v, V},
-    get(Val, Table).
+valget(Val, Table) ->
+    get(getkey_val(Val), Table).
 
-del(K, V, Table) ->
-    Key = {k, K},
-    Val = {v, V},
-    ets:delete(Table, Key),
-    ets:delete(Table, Val),
+del(Key, Val, Table) ->
+    % ets does not have atomic delete object list
+    ets:delete(Table, getkey_key(Key)),
+    ets:delete(Table, getkey_val(Val)),
     ok.
 
 to_list(Table) ->
@@ -55,12 +53,18 @@ to_list(Table) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+getkey_key(K) ->
+    {k, K}.
+
+getkey_val(V) ->
+    {v, V}.
+
 get(Key, Table) ->
     case ets:lookup(Table, Key) of
         [] ->
-            {ok, not_found};
+            not_found;
         [{Key, Value}] ->
-            {ok, Value};
+            Value;
         _ ->
-            {error, unknown_object}
+            error
     end.

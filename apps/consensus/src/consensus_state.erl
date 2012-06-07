@@ -18,7 +18,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([new/0,
+-export([new/0, del/0,
          get_members/0, set_members/1,
          get_master/0, set_master/1, is_master/0, get_valid_master/0
         ]).
@@ -66,11 +66,16 @@
 %% Public functions
 %% ------------------------------------------------------------------
 new() ->
-    ets:new(?STATE, [set, named_table]),
+    ets:new(?STATE, [set, named_table, public]),
     initialize().
 
+del() ->
+    ets:delete(?STATE).
+
+% TODO: Improve the backend storage DS
 get_members() ->
-    get_state(members).
+    MembersState = get_state(members),
+    get_members(MembersState).
 
 set_members(Members) ->
     set(members, Members).
@@ -111,15 +116,15 @@ initialize() ->
     ets:insert(?STATE, Objs).
 
 get_state(Key) ->
-    {Key, Val} = ets:lookup(?STATE, Key),
+    [{Key, Val}] = ets:lookup(?STATE, Key),
     Val.
 
 set(Key, Value) ->
     ets:insert(?STATE, {Key, Value}).
 
 check_master() ->
-    {Node, NodeStatus} = ?MODULE:get(node),
-    {Master, Lease} = ?MODULE:get(master),
+    {Node, NodeStatus} = get_state(node),
+    {Master, Lease} = get_state(master),
 
     case NodeStatus of
         {valid, master} ->
@@ -146,3 +151,12 @@ check_master() ->
 
 is_lease_valid(Lease) ->
     timer:now_diff(erlang:now(), Lease) > ?MIN_LEASE.
+
+
+get_members(MembersState) ->
+    get_members(MembersState, []).
+
+get_members([], Acc) ->
+    Acc;
+get_members([{Member, _State} | MembersState], Acc) ->
+    get_members(MembersState, [Member | Acc]).

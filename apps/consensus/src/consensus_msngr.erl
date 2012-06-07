@@ -29,7 +29,7 @@
 %% Public functions
 %% ------------------------------------------------------------------
 
-%TODO: Rename call & cast to sync, async
+% TODO: Rename call & cast to sync, async
 call(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
@@ -66,4 +66,3 @@ get_add(Target) ->
         Pid ->
             Pid
     end.
-

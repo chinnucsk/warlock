@@ -31,6 +31,8 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/config.hrl").
+
 -record(state, {
             ballot_num = {0, 0},
 
@@ -44,7 +46,7 @@
 %% API Function Definitions
 %% ------------------------------------------------------------------
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -54,6 +56,7 @@ start_link() ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
+    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
     {ok, #state{}}.
 
 %% ------------------------------------------------------------------
@@ -70,6 +73,7 @@ handle_call(_Request, _From, State) ->
 %% phase 1 a message from some leader
 handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
                                              accepted = Accepted} = State) ->
+    ?LINFO("Received message ~p", [{p1a, {Leader, LBallot}}]),
     Ballot = case consensus_util:ballot_greater(LBallot, CurrBallot) of
         true ->
             LBallot;
@@ -84,6 +88,7 @@ handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
 %% phase 2 a message from some leader
 handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
             #state{ballot_num = CurrBallot, accepted = Accepted} = State) ->
+    ?LINFO("Received message ~p", [{p2a, {Leader, PValue}}]),
     {Ballot, NewAccepted} =
         case consensus_util:ballot_greateq(LBallot, CurrBallot) of
             true ->
