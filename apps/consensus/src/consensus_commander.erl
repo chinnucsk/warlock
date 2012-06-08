@@ -60,7 +60,7 @@ start_link({Leader, PValue}) ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([{Leader, PValue}]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
 
     % Send a message to  all the acceptors and wait for their response
     Message = {p2a, {?SELF, PValue}},
@@ -85,7 +85,7 @@ handle_cast({p2b, {_Acceptor, ABallot}},
             #state{pvalue = {CurrBallot, Slot, Proposal},
                    vote_count = VoteCount,
                    leader = Leader} = State) ->
-    ?LINFO("Received message ~p", [{p2b, {_Acceptor, ABallot}}]),
+    ?LDEBUG("Received message ~p", [{p2b, {_Acceptor, ABallot}}]),
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
             case is_majority(VoteCount + 1) of

@@ -3,6 +3,8 @@
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("util/include/config.hrl").
 
+-define(LOGLEVEL, info).
+
 % TODO: Have operations independant from db
 
 %%-------------------------------------------------------------------
@@ -46,7 +48,7 @@ db_test_() ->
      }}.
 
 simple_run() ->
-    lager:set_loglevel(lager_console_backend, info),
+    lager:set_loglevel(lager_console_backend, ?LOGLEVEL),
 
     {Key, Val} = {kkey, vval},
     ?assertEqual({ok, success}, server:set(Key, Val)),

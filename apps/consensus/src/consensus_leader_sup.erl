@@ -48,7 +48,7 @@ start_link() ->
 %% Initialize supervisor with child specs
 %% ------------------------------------------------------------------
 init([]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
 
     RestartStrategy = one_for_one,
     MaxRestarts = 5,

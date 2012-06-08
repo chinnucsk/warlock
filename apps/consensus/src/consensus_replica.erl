@@ -71,7 +71,7 @@ start_link() ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
     {ok, #state{}}.
 
 %% ------------------------------------------------------------------
@@ -86,13 +86,13 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 % Request sent from client
 handle_cast({request, Proposal}, State) ->
-    ?LINFO("Received message ~p", [{request, Proposal}]),
+    ?LDEBUG("Received message ~p", [{request, Proposal}]),
     NewState = propose(Proposal, State),
     {noreply, NewState};
 %% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
             #state{decisions = Decisions} = State) ->
-    ?LINFO("Received message ~p", [{decision, {Slot, Proposal}}]),
+    ?LDEBUG("Received message ~p", [{decision, {Slot, Proposal}}]),
     % Add the decision to the set of decisions
 
     % A safety check to see if this is a duplicate decision
@@ -155,7 +155,6 @@ propose(Proposal, #state{proposals = Proposals,
 % Executes the decision for the specified slot
 perform(Proposal, #state{slot_num = CurrSlot,
                          tlog = TLog} = State) ->
-    ?LINFO("Performing proposal ~p", [Proposal]),
     % Add a new entry in transaction log
     util_ht:set(CurrSlot, Proposal, TLog),
     % Let the consensus client handle the callback execution

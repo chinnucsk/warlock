@@ -50,7 +50,7 @@ exec(#dop{type = _Type,
           function = F,
           args = A,
           client = Client} = _Operation) ->
-    ?LINFO("Executing operation ~p:~p(~p)", [M, F, A]),
+    ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
 
     %% TODO: Handle TYPE cases
 %%     case Type of
@@ -75,5 +75,5 @@ exec(#dop{type = _Type,
 exec(M, F, A, Client) ->
     Result = M:F(A),
     Response = {response, Result},
-    ?LINFO("RESULT ==>> ~p", [Result]),
+    ?LDEBUG("RESULT ==>> ~p", [Result]),
     consensus_msngr:cast(Client, Response).

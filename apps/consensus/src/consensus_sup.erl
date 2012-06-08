@@ -36,7 +36,7 @@ start_link() ->
 %% ===================================================================
 
 init([]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
     % Init consensus state
     % TODO: Use table manager?
     consensus_state:new(),

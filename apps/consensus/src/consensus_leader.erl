@@ -61,7 +61,7 @@ start_link() ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
 
     % Spawn scout with the first ballot
     consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
@@ -83,10 +83,8 @@ handle_cast({propose, {Slot, Proposal}},
             #state{proposals = Proposals,
                    active = Active,
                    ballot_num = Ballot} = State) ->
-    ?LINFO("Received message ~p", [{propose, {Slot, Proposal}}]),
+    ?LDEBUG("Received message ~p", [{propose, {Slot, Proposal}}]),
     % Add the proposal if we do not have a command for the proposed spot
-    ?LINFO("Leader state ~p", [State]),
-    ?LINFO("util_ht:get(~p, ~p) ~p", [Slot, Proposals, Proposal]),
     case util_ht:get(Slot, Proposals) of
         not_found ->
             % Note: we could make Slot as the key (better performance), but just
@@ -109,7 +107,7 @@ handle_cast({propose, {Slot, Proposal}},
 handle_cast({adopted, {CurrBallot, PValues}},
             #state{proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
-    ?LINFO("Received message ~p", [{adopted, {CurrBallot, PValues}}]),
+    ?LDEBUG("Received message ~p", [{adopted, {CurrBallot, PValues}}]),
 
     % Get all the proposals in PValues with max ballot number and update our
     % proposals with this data
@@ -121,7 +119,7 @@ handle_cast({adopted, {CurrBallot, PValues}},
 %% preempted message sent by either a scout or a commander, it means that some
 %% acceptor has adopted some other ballot
 handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
-    ?LINFO("Received message ~p", [{preempted, ABallot}]),
+    ?LDEBUG("Received message ~p", [{preempted, ABallot}]),
 
     % If the new ballot number is bigger, increase ballot number and scout for
     % the next adoption

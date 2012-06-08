@@ -56,7 +56,7 @@ create(Args) ->
 %% Initialize supervisor with child specs
 %% ------------------------------------------------------------------
 init([]) ->
-    ?LINFO("Starting " ++ erlang:atom_to_list(?MODULE)),
+    ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
 
     RestartStrategy = simple_one_for_one,
     MaxRestarts = 0,
