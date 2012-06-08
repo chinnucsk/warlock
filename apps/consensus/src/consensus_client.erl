@@ -29,7 +29,6 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
--include_lib("server/include/server.hrl").
 
 %% ------------------------------------------------------------------
 %% Public functions

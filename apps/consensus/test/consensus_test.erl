@@ -1,13 +1,15 @@
 -module(consensus_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("server/include/server.hrl").
+-include_lib("util/include/config.hrl").
+
+% TODO: Have operations independant from db
 
 %%-------------------------------------------------------------------
 %% setup code
 %%-------------------------------------------------------------------
 apps() ->
-    [compiler, syntax_tools, lager, db, consensus].
+    [compiler, syntax_tools, lager, consensus].
 
 app_start() ->
     lists:foreach (fun (App) ->
@@ -44,29 +46,28 @@ db_test_() ->
      }}.
 
 simple_run() ->
+    lager:set_loglevel(lager_console_backend, info),
+
+
     consensus_state:set_master({node(), {123, 123, 123}}),
-%%     consensus_msngr:cast(leader, {propose, {1, 2}}),
 
     Operation1 = #dop{type=write,
-                     module=db,
-                     function=set,
-                     args=[kkey, vval],
+                     module=lists,
+                     function=min,
+                     args=[1, 2, 3, 4],
                      client=self()
                      },
     consensus_client:propose(Operation1),
+
     Operation2 = #dop{type=write,
-                     module=db,
-                     function=get,
-                     args=kkey,
+                     module=lists,
+                     function=max,
+                     args=[1, 2, 3, 4],
                      client=self()
                      },
     consensus_client:propose(Operation2),
 
-
-    timer:sleep(2000),
-
-
-
+    timer:sleep(1000),
     ?assertNotEqual(1, 2).
 
 %%-------------------------------------------------------------------
