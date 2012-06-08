@@ -20,7 +20,7 @@
 -export([handle/1]).
 
 %% -----------------------------------------------------------------
-%% Private macros
+%% Include files and private macros
 %% -----------------------------------------------------------------
 
 %% -----------------------------------------------------------------
@@ -31,7 +31,7 @@
 handle([get, Key]) ->
     db:get(Key);
 handle([set, {Key, Value}]) ->
-    db:set(Key, Value);
+    db:set([Key, Value]);
 handle([del, Key]) ->
     db:del(Key).
 

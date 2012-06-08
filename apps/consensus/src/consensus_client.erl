@@ -45,25 +45,28 @@ propose(Operation) ->
 %% Executes the callback function in the operation
 %% Called by the replica
 %% ------------------------------------------------------------------
-exec(#dop{type = Type,
+exec(#dop{type = _Type,
           module = M,
           function = F,
           args = A,
           client = Client} = _Operation) ->
-    ?LINFO("Executing operation"),
-    case Type of
-        % Only master needs to respond to reads
-        read ->
-            case consensus_state:is_master() of
-                true ->
-                    exec(M, F, A, Client);
-                false ->
-                    ok
-            end;
-        % All nodes need to execute writes
-        write ->
-            exec(M, F, A, Client)
-    end.
+    ?LINFO("Executing operation ~p:~p(~p)", [M, F, A]),
+
+    %% TODO: Handle TYPE cases
+%%     case Type of
+%%         % Only master needs to respond to reads
+%%         read ->
+%%             case consensus_state:is_master() of
+%%                 true ->
+%%                     exec(M, F, A, Client);
+%%                 false ->
+%%                     ok
+%%             end;
+%%         % All nodes need to execute writes
+%%         write ->
+%%             exec(M, F, A, Client)
+%%     end.
+    exec(M, F, A, Client).
 
 %% ------------------------------------------------------------------
 %% Internal function

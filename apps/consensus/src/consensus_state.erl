@@ -31,7 +31,9 @@
 -define(INITIAL_STATUS, {valid, election}).
 
 %% Master state is in the format of {node(), lease()}
--define(INITIAL_MASTER, {none, none}).
+%% Single node mode -> same server is master
+%% TODO: Fix once multi node config is available
+-define(INITIAL_MASTER, {?NODE, erlang:now()}).
 
 %% Time window before lease expiry we disallow master requests
 %% To be tuned as per clock drift rate
