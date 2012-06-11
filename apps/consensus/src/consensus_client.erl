@@ -29,6 +29,7 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
+-include("consensus.hrl").
 
 %% ------------------------------------------------------------------
 %% Public functions
@@ -39,7 +40,7 @@
 %% ------------------------------------------------------------------
 propose(Operation) ->
     Msg = {request, Operation},
-    consensus_msngr:cast(master_replica, Msg).
+    ?ASYNC_MSG(master_replica, Msg).
 
 %% ------------------------------------------------------------------
 %% Executes the callback function in the operation
@@ -76,4 +77,4 @@ exec(M, F, A, Client) ->
     Result = M:F(A),
     Response = {response, Result},
     ?LDEBUG("RESULT ==>> ~p", [Result]),
-    consensus_msngr:cast(Client, Response).
+    ?ASYNC_MSG(Client, Response).

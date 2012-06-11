@@ -31,6 +31,7 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
+-include("consensus.hrl").
 
 -record(state, {
             % Replicated transaction log
@@ -144,7 +145,7 @@ propose(Proposal, #state{proposals = Proposals,
         not_found ->
             util_bht:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
-            consensus_msngr:cast(leader, Message),
+            ?ASYNC_MSG(leader, Message),
             NewMinSlot = MinSlot + 1,
             State#state{min_slot_num = NewMinSlot};
         % If already decided, ignore it

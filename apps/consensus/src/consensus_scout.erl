@@ -31,6 +31,7 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
+-include("consensus.hrl").
 
 -record(state, {
             % The leader that spawned this commander
@@ -68,7 +69,7 @@ init([{Leader, Ballot}]) ->
 
     % Send a message to  all the acceptors and wait for their response
     Message = {p1a, {?SELF, Ballot}},
-    consensus_msngr:cast(acceptors, Message),
+    ?ASYNC_MSG(acceptors, Message),
     {ok, #state{leader = Leader,
                 ballot_num = Ballot}}.
 
@@ -97,7 +98,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
             case is_majority(VoteCount + 1) of
                 true ->
                     Message = {adopted, {ABallot, NewPValues}},
-                    consensus_msngr:cast(Leader, Message),
+                    ?ASYNC_MSG(Leader, Message),
                     {stop, normal, State};
                 false ->
                     NewState = State#state{pvalues = NewPValues,
@@ -116,7 +117,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
                     {noreply, State};
                 false ->
                     % We have a larger ballot; inform leader and exit
-                    consensus_msngr:cast(Leader, {preempted, ABallot}),
+                    ?ASYNC_MSG(Leader, {preempted, ABallot}),
                     {stop, normal, State}
             end
     end;

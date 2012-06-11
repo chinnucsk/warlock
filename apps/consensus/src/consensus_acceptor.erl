@@ -32,6 +32,7 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/config.hrl").
+-include("consensus.hrl").
 
 -record(state, {
             ballot_num = {0, 0},
@@ -83,7 +84,7 @@ handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
     NewState = State#state{ballot_num = Ballot},
     % Response = {p1b, self(), ballot_num, accepted} /From paper
     Response = {p1b, {?SELF, Ballot, Accepted}},
-    consensus_msngr:cast(Leader, Response),
+    ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
 %% phase 2 a message from some leader
 handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
@@ -99,7 +100,7 @@ handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
     NewState = State#state{ballot_num = Ballot, accepted = NewAccepted},
     % Response = {p2b, self(); ballot num} /From paper
     Response = {p2b, {?SELF, Ballot}},
-    consensus_msngr:cast(Leader, Response),
+    ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
 %% Unknown message
 handle_cast(_Msg, State) ->
