@@ -57,9 +57,7 @@ get(Key, #client{inst=Table}) ->
         [{Key, Value}] ->
             {ok, Value};
         [_H | _T] ->
-            {error, multiple_values};
-        _ ->
-            {error, unknown}
+            {error, multiple_values}
     end.
 
 -spec set(Key::key(), Value::value(), Client::#client{}) -> {ok, success}.
