@@ -1,7 +1,7 @@
 -module(server_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 -define(LOGLEVEL, info).
 

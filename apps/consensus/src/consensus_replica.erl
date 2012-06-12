@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
 -record(state, {
@@ -87,13 +87,14 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 % Request sent from client
 handle_cast({request, Proposal}, State) ->
-    ?LDEBUG("Received message ~p", [{request, Proposal}]),
+    ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
     NewState = propose(Proposal, State),
     {noreply, NewState};
 %% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
             #state{decisions = Decisions} = State) ->
-    ?LDEBUG("Received message ~p", [{decision, {Slot, Proposal}}]),
+    ?LDEBUG("REP ~p::Received message ~p", [self(),
+                                            {decision, {Slot, Proposal}}]),
     % Add the decision to the set of decisions
 
     % A safety check to see if this is a duplicate decision

@@ -19,146 +19,162 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 -export([new/0, del/0,
-         get_members/0, set_members/1,
-         get_master/0, set_master/1, is_master/0, get_valid_master/0
+         set_node_status/2, get_node_status/1,
+         get_nodes/0, get_nodes/1, get_members/0,
+         get_master/0, get_valid_master/0, set_master/2, is_master/0,
+         get_lease/0
         ]).
 
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--define(NODE, node()).
-
--define(INITIAL_STATUS, {valid, election}).
-
-%% Master state is in the format of {node(), lease()}
-%% Single node mode -> same server is master
-%% TODO: Fix once multi node config is available
--define(INITIAL_MASTER, {?NODE, erlang:now()}).
+%% Default lease time for master node
+-define(LEASE_TIME, 5000). % Master lease, 5s
 
 %% Time window before lease expiry we disallow master requests
 %% To be tuned as per clock drift rate
--define(MIN_LEASE, 100000). % In microseconds, 0.1s
+-define(MIN_LEASE, 100000). % In microseconds, 100ms
+
+%% Default master for seed node
+-define(INITIAL_MASTER, {node(), {erlang:now(), ?LEASE_TIME}}).
+
+%% Initial status of the node
+-define(INITIAL_STATUS, down).
+
+%% Node's initial state
+-define(INITIAL_SYSTEM_STATE, [
+            %% Name of the current node
+            {node, node()},
+
+            %% Status of the current node. Start as down
+            {status, ?INITIAL_STATUS},
+
+            %% Status of all the connected nodes, including self
+            {c_status, [{node(), ?INITIAL_STATUS}]},
+
+            %% Master lease time
+            {lease, {now(), 0}},
+
+            %% Valid cluster members
+            %% master, valid, join, down are disjoint
+
+            %% Master node
+            {master, [node()]},
+
+            %% Valid cluster members
+            {valid, []},
+
+            %% Joining cluster members
+            {join, []},
+
+            %% Down cluster members
+            {down, []}
+]).
 
 %% Name of the ets table
--define(STATE, cons_state).
-
-%% The possible states of the master election FSM
-%% A node can either be a master, a member or in election
-%-type fsm_state() :: election | master | member.
-
-%% Lease is a time in the future, until which the master has lease
-%-type lease() :: {Megaseconds::Integer,
-%                  Seconds::Integer,
-%                  Microseconds::Integer}.
-
-%% Type of members
-%% valid - Node is part of the cluster
-%% invalid - Node is removed the the cluster and is to be ignored
-%% joining - Node is trying to join the cluster
-%% Second parameter used for fine grained status
-%-type member_status() ::
-%          {valid, election} |
-%          {valid, member} |
-%          {valid, master} |
-%          {valid, unknown} |
-%          {invalid, unknown} |
-%          {joining, unknown}.
+-define(TABLE, cons_state).
 
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
 new() ->
-    ets:new(?STATE, [set, named_table, public]),
-    initialize().
+    ets:new(?TABLE, [set, named_table, public]),
+    % Initialize the node state
+    ets:insert(?TABLE, ?INITIAL_SYSTEM_STATE).
 
 del() ->
-    ets:delete(?STATE).
+    ets:delete(?TABLE).
 
-% TODO: Improve the backend storage DS
-get_members() ->
-    MembersState = get_state(members),
-    get_members(MembersState).
-
-set_members(Members) ->
-    set(members, Members).
-
-get_master() ->
-    {Master, _Lease} = get_state(master),
-    Master.
-
-get_valid_master() ->
-    {Master, Lease} = get_state(master),
-    case is_lease_valid(Lease) of
-        true ->
-            Master;
-        false ->
-            {error, no_master}
+%% Get status of a specific node in the cluster
+get_node_status(Node) ->
+    case lists:keyfind(Node, 1, get_state(c_status)) of
+        {Node, Status} ->
+            Status;
+        _ ->
+            undefined
     end.
 
-set_master(Master) ->
-    set(master, Master).
+%% Add a new node or update a node's cluster status
+%% Makes sure master, valid, down, join are disjoint
+set_node_status(Node, Status) when
+  Status == master;
+  Status == valid;
+  Status == join;
+  Status == down ->
+    case get_node_status(Node) of
+        undefined ->
+            add_node(Node, Status);
+        OldStatus ->
+            update_node(Node, OldStatus, Status)
+    end.
 
-% Check if current node is the master
+%% Get all nodes
+get_nodes() ->
+    [Node || {Node, _Status} <- get_state(c_status)].
+
+%% Get a list of nodes specified
+get_nodes(Type) when
+  Type == valid;
+  Type == master;
+  Type == join;
+  Type == down ->
+    get_state(Type).
+
+%% Members of the clusters who can vote
+get_members() ->
+    get_nodes(master) ++ get_nodes(valid).
+
+%% Get the master node
+get_master() ->
+    get_state(master).
+
+%% Get lease time
+get_lease() ->
+    get_state(lease).
+
+%% Get master while making sure it still has the lease
+get_valid_master() ->
+    case is_lease_valid(get_lease()) of
+        true ->
+            get_master();
+        false ->
+            undefined
+    end.
+
+%% Set a new master node
+set_master(Node, Lease) ->
+    set_node_status(Node, master),
+    set_state(lease, Lease).
+
+%% Check if the current node is the master
 is_master() ->
-    catch check_master().
+    get_master() =:= [get_state(node)].
 
 %% ------------------------------------------------------------------
-%% Internal function
+%% Internal functions
 %% ------------------------------------------------------------------
-
-%% Initialize all keys in the state
-initialize() ->
-    Objs = [
-        %% Name of the current node and its status
-        {node, {?NODE, ?INITIAL_STATUS}},
-        %% Members of the cluster
-        {members, [{?NODE, ?INITIAL_STATUS}]},
-        %% Master node of the cluster
-        {master, ?INITIAL_MASTER}],
-    ets:insert(?STATE, Objs).
-
 get_state(Key) ->
-    [{Key, Val}] = ets:lookup(?STATE, Key),
+    [{Key, Val}] = ets:lookup(?TABLE, Key),
     Val.
 
-set(Key, Value) ->
-    ets:insert(?STATE, {Key, Value}).
+set_state(Key, Value) ->
+    ets:insert(?TABLE, {Key, Value}).
 
-check_master() ->
-    {Node, NodeStatus} = get_state(node),
-    {Master, Lease} = get_state(master),
+add_node(Node, Status) ->
+    % Update main nodes list
+    set_state(c_status, [{Node, Status} | get_state(c_status)]),
+    % Update list based in Status
+    set_state(Status, [Node | get_state(Status)]).
 
-    case NodeStatus of
-        {valid, master} ->
-            ok;
-        _ ->
-            throw(false)
-    end,
-
-    case Node =:= Master of
-        true ->
-            ok;
-        _ ->
-            throw(false)
-    end,
-
-    case is_lease_valid(Lease) of
-        true ->
-            ok;
-        false ->
-            throw(false)
-    end,
-
-    true.
+update_node(Node, OldStatus, NewStatus) ->
+    % Update main nodes list
+    set_state(c_status, lists:keyreplace(Node, 1, get_state(c_status),
+                                         {Node, NewStatus})),
+    % Update list based in OldStatus
+    set_state(OldStatus, get_state(OldStatus) -- [Node]),
+    % Update list based in NewStatus
+    set_state(NewStatus, get_state(NewStatus) ++ [Node]).
 
 is_lease_valid(Lease) ->
     timer:now_diff(erlang:now(), Lease) > ?MIN_LEASE.
 
-
-get_members(MembersState) ->
-    get_members(MembersState, []).
-
-get_members([], Acc) ->
-    Acc;
-get_members([{Member, _State} | MembersState], Acc) ->
-    get_members(MembersState, [Member | Acc]).

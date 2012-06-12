@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 -include("db.hrl").
 
 %% gen_server State

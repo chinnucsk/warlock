@@ -9,7 +9,7 @@
 %% Supervisor callbacks
 -export([init/1]).
 
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Restart, Type),

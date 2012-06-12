@@ -19,29 +19,29 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([call/2, cast/2]).
+-export([sync/2, async/2]).
 
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
+-include_lib("util/include/common.hrl").
 
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
 
 % TODO: Rename call & cast to sync, async
-call(Target, Msg) ->
+sync(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
 
-cast(Target, Msg) when
-  Target == acceptors;
-  Target == replicas ->
+async(Target, Msg) when is_pid(Target) ->
+    ?LDEBUG("MSG {PID, Msg}:: {~p, ~p}", [Target, Msg]),
+    gen_server:cast(Target, Msg);
+async(Target, Msg) ->
     {Name, Nodes} = get_add(Target),
-    gen_server:abcast(Nodes, Name, Msg);
-cast(Target, Msg) ->
-    TargetAdd = get_add(Target),
-    gen_server:cast(TargetAdd, Msg).
+    ?LDEBUG("MSG {TARGET, NODES, Msg}:: {~p, ~p, ~p}", [Name, Nodes, Msg]),
+    gen_server:abcast(Nodes, Name, Msg).
 
 %% ------------------------------------------------------------------
 %% Internal function
@@ -57,12 +57,12 @@ get_add(Target) ->
         master_replica ->
             Master = consensus_state:get_master(),
             {consensus_replica, Master};
+        % Acceptors on valid set of nodes
         acceptors ->
             Acceptors = consensus_state:get_members(),
             {consensus_acceptor, Acceptors};
+        % Replicas on valid set of nodes
         replicas ->
             Replicas = consensus_state:get_members(),
-            {consensus_replica, Replicas};
-        Pid ->
-            Pid
+            {consensus_replica, Replicas}
     end.

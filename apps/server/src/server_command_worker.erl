@@ -33,7 +33,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 -record(state, {
             % The operation that is to be performed on the server

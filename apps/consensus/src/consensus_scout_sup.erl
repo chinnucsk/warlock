@@ -28,7 +28,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 -define(WORKER, consensus_scout).
 

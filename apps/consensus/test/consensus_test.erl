@@ -1,9 +1,9 @@
 -module(consensus_test).
 
 -include_lib("eunit/include/eunit.hrl").
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
-% TODO: Have operations independant from db
+-define(LOG_LEVEL, info).
 
 %%-------------------------------------------------------------------
 %% setup code
@@ -14,14 +14,23 @@ apps() ->
 app_start() ->
     lists:foreach (fun (App) ->
                            case application:start (App) of
-                               {error, {already_started, App}} -> ok;
-                               ok -> ok;
+                               {error, {already_started, App}} ->
+                                   ok;
+                               ok ->
+                                   ok;
                                Other ->
                                    erlang:error ({error,
                                                   {?MODULE, ?LINE,
                                                    'could not start',
                                                    App,
                                                    'reason was', Other}})
+                           end,
+                           case App of
+                               lager ->
+                                   lager:set_loglevel(lager_console_backend,
+                                                      ?LOG_LEVEL);
+                               _ ->
+                                   ok
                            end
                    end,
                    apps ()),
@@ -35,7 +44,13 @@ app_stop(_) ->
 %% test code
 %%-------------------------------------------------------------------
 
-db_test_() ->
+receive_cast() ->
+    receive
+        {'$gen_cast',{response,Val}} ->
+            Val
+    end.
+
+consensus_test_() ->
     {timeout, 60,
      {setup,
       fun app_start/0,
@@ -46,11 +61,7 @@ db_test_() ->
      }}.
 
 simple_run() ->
-    lager:set_loglevel(lager_console_backend, info),
-
-
-    consensus_state:set_master({node(), {123, 123, 123}}),
-
+    % Set the current node as master for the test
     Operation1 = #dop{type=write,
                      module=lists,
                      function=min,
@@ -58,6 +69,8 @@ simple_run() ->
                      client=self()
                      },
     consensus_client:propose(Operation1),
+
+    ?assertEqual(receive_cast(), 1),
 
     Operation2 = #dop{type=write,
                      module=lists,
@@ -67,8 +80,7 @@ simple_run() ->
                      },
     consensus_client:propose(Operation2),
 
-    timer:sleep(1000),
-    ?assertNotEqual(1, 2).
+    ?assertEqual(receive_cast(), 4).
 
 %%-------------------------------------------------------------------
 %% internal functions

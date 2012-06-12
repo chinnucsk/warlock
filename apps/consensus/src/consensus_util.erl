@@ -21,7 +21,10 @@
 -export([ballot_greateq/2, ballot_greater/2,
          ballot_lesser/2,
          incr_ballot/2,
-         ballot_equal/2]).
+         ballot_equal/2,
+         is_majority/1]).
+
+-include_lib("util/include/common.hrl").
 
 % TODO: Create types for frequently used structures
 
@@ -47,3 +50,12 @@ ballot_equal(BallotA, BallotB) ->
 %% Assumes IntB > IntA
 incr_ballot({_IntA, LeaderA}, {IntB, _LeaderB}) ->
     {IntB + 1, LeaderA}.
+
+%% Check if the number of votes make it the majority
+%% VoteCount > Number of acceptors
+is_majority(VoteCount) ->
+    Acceptors = consensus_state:get_members(),
+    ?LDEBUG("MOJORITY: {VoteCount, Acceptors, Res}:: {~p, ~p, ~p}",
+            [VoteCount, Acceptors,
+             (erlang:trunc(erlang:length(Acceptors)/2) + 1)]),
+    VoteCount >= (erlang:trunc(erlang:length(Acceptors)/2) + 1).

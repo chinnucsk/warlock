@@ -10,7 +10,7 @@
 -export([init/1]).
 
 
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 
 %% Helper macro for declaring children of supervisor
@@ -38,7 +38,6 @@ start_link() ->
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
     % Init consensus state
-    % TODO: Use table manager?
     consensus_state:new(),
 
     RestartStrategy = one_for_all,
@@ -47,6 +46,8 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
+    %%TODO: Change supervision tree such that commander and scouts die when
+    %% corresponsing leader dies
     Children = lists:flatten(
         [?CHILD(consensus_acceptor, transient, worker),
          ?CHILD(consensus_replica, transient, worker),

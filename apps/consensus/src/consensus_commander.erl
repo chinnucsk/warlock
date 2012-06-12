@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
 -record(state, {
@@ -86,10 +86,10 @@ handle_cast({p2b, {_Acceptor, ABallot}},
             #state{pvalue = {CurrBallot, Slot, Proposal},
                    vote_count = VoteCount,
                    leader = Leader} = State) ->
-    ?LDEBUG("Received message ~p", [{p2b, {_Acceptor, ABallot}}]),
+    ?LDEBUG("COM ~p::Received message ~p", [self(), {p2b, {_Acceptor, ABallot}}]),
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
-            case is_majority(VoteCount + 1) of
+            case consensus_util:is_majority(VoteCount + 1) of
                 true ->
                     Message = {decision, {Slot, Proposal}},
                     ?ASYNC_MSG(replicas, Message),
@@ -138,8 +138,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-% Votes > (N/2 + 1)
-is_majority(VoteCount) ->
-    Acceptors = consensus_state:get_members(),
-    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2)).

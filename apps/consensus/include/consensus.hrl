@@ -1,2 +1,2 @@
--define(SYNC_MSG(Target, Msg), consensus_msngr:call(Target, Msg)).
--define(ASYNC_MSG(Target, Msg), consensus_msngr:cast(Target, Msg)).
+-define(SYNC_MSG(Target, Msg), consensus_msngr:sync(Target, Msg)).
+-define(ASYNC_MSG(Target, Msg), consensus_msngr:async(Target, Msg)).

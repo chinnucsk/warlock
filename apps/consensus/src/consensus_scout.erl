@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
 -record(state, {
@@ -95,7 +95,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
     case consensus_util:ballot_equal(ABallot, CurrBallot) of
         true ->
             NewPValues = sets:union(APValues, PValues),
-            case is_majority(VoteCount + 1) of
+            case consensus_util:is_majority(VoteCount + 1) of
                 true ->
                     Message = {adopted, {ABallot, NewPValues}},
                     ?ASYNC_MSG(Leader, Message),
@@ -145,8 +145,3 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-% Votes > (N/2 + 1)
-is_majority(VoteCount) ->
-    Acceptors = consensus_state:get_members(),
-    VoteCount > (erlang:trunc(erlang:length(Acceptors)/2)).

@@ -30,7 +30,7 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% -------------------------------------------------------------------
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 -define(SELF, self()).
 -define(FIRST_BALLOT, {0, ?SELF}).
@@ -83,7 +83,7 @@ handle_cast({propose, {Slot, Proposal}},
             #state{proposals = Proposals,
                    active = Active,
                    ballot_num = Ballot} = State) ->
-    ?LDEBUG("Received message ~p", [{propose, {Slot, Proposal}}]),
+    ?LDEBUG("LEA ~p::Received message ~p", [self(), {propose, {Slot, Proposal}}]),
     % Add the proposal if we do not have a command for the proposed spot
     case util_ht:get(Slot, Proposals) of
         not_found ->
@@ -107,7 +107,8 @@ handle_cast({propose, {Slot, Proposal}},
 handle_cast({adopted, {CurrBallot, PValues}},
             #state{proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
-    ?LDEBUG("Received message ~p", [{adopted, {CurrBallot, PValues}}]),
+    ?LDEBUG("LEA ~p::Received message ~p", [self(),
+                                            {adopted, {CurrBallot, PValues}}]),
 
     % Get all the proposals in PValues with max ballot number and update our
     % proposals with this data
@@ -119,7 +120,7 @@ handle_cast({adopted, {CurrBallot, PValues}},
 %% preempted message sent by either a scout or a commander, it means that some
 %% acceptor has adopted some other ballot
 handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
-    ?LDEBUG("Received message ~p", [{preempted, ABallot}]),
+    ?LDEBUG("LEA ~p::Received message ~p", [self(), {preempted, ABallot}]),
 
     % If the new ballot number is bigger, increase ballot number and scout for
     % the next adoption

@@ -23,7 +23,7 @@
 %% ------------------------------------------------------------------
 -export([init/1]).
 
--include_lib("util/include/config.hrl").
+-include_lib("util/include/common.hrl").
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Type), {I, {I, start_link, []}, permanent, 5000, Type, [I]}).
