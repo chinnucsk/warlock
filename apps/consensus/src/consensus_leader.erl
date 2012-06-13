@@ -31,8 +31,10 @@
 %% Include files and macros
 %% -------------------------------------------------------------------
 -include_lib("util/include/common.hrl").
+-include("consensus.hrl").
 
 -define(SELF, self()).
+-define(SELF_NODE, node()).
 -define(FIRST_BALLOT, {0, ?SELF}).
 
 -record(state, {
@@ -108,10 +110,23 @@ handle_cast({adopted, {CurrBallot, PValues}},
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {adopted, {CurrBallot, PValues}}]),
 
+    %% Now that the ballot is accepted, make self as the master
+    spawn_master_commander(CurrBallot),
+
     % Get all the proposals in PValues with max ballot number and update our
     % proposals with this data
     Pmax = pmax(PValues),
     intersect(Proposals, Pmax),
+
+    {noreply, State};
+%% master_adopted message sent by master_commander when everyone has accepted
+%% this leader as their master
+handle_cast({master_adopted, CurrBallot},
+            #state{proposals = Proposals,
+                   ballot_num = CurrBallot} = State) ->
+    ?LDEBUG("LEA ~p::Received message ~p", [self(),
+                                            {master_adopted, CurrBallot}]),
+
     % Spawn a commander for every proposal
     spawn_commanders(CurrBallot, Proposals),
     {noreply, State#state{active = true}};
@@ -211,3 +226,16 @@ spawn_commanders_lst(Ballot, [H|L]) ->
     PValue = {Ballot, Slot, Proposal},
     consensus_commander_sup:create({?SELF, PValue}),
     spawn_commanders_lst(Ballot, L).
+
+get_lease() ->
+    {now(), ?LEASE_TIME}.
+
+spawn_master_commander(Ballot) ->
+    Proposal = #dop{type=write,
+                    module=?STATE_MGR,
+                    function=set_master,
+                    args=[?SELF_NODE, get_lease()],
+                    client=undefined
+                   },
+    PValue = {Ballot, ?MASTER_SLOT, Proposal},
+    consensus_commander_sup:create({?SELF, PValue}).

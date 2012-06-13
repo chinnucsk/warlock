@@ -50,7 +50,7 @@ async(Target, Msg) ->
 get_add(Target) ->
     case Target of
         % Leader process on the master node
-        leader ->
+        leaders ->
             Master = consensus_state:get_members(),
             {consensus_leader, Master};
         % Replica process on the master node

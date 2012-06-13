@@ -49,35 +49,36 @@ propose(Operation) ->
 %% Note: This can be extended to handle different kinds of operation
 %% other than #dop
 %% ------------------------------------------------------------------
-exec(#dop{type = _Type,
+exec(#dop{type = Type,
           module = M,
           function = F,
           args = A,
           client = Client} = _Operation) ->
     ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
 
-    %% TODO: Handle TYPE cases
-%%     case Type of
-%%         % Only master needs to respond to reads
-%%         read ->
-%%             case consensus_state:is_master() of
-%%                 true ->
-%%                     exec(M, F, A, Client);
-%%                 false ->
-%%                     ok
-%%             end;
-%%         % All nodes need to execute writes
-%%         write ->
-%%             exec(M, F, A, Client)
-%%     end.
-    exec(M, F, A, Client).
+    case {consensus_state:is_master(), Type} of
+        {true, _} ->
+            respond(Client, exec(M, F, A));
+        {false, write} ->
+            exec(M, F, A);
+        {false, read} ->
+            ok
+    end.
 
 %% ------------------------------------------------------------------
 %% Internal function
 %% ------------------------------------------------------------------
 
-exec(M, F, A, Client) ->
+exec(M, F, A) ->
     Result = M:F(A),
     Response = {response, Result},
     ?LDEBUG("RESULT ==>> ~p", [Result]),
-    ?ASYNC_MSG(Client, Response).
+    Response.
+
+respond(Client, Response) ->
+    case Client of
+        undefined ->
+            ok;
+        _ ->
+            ?ASYNC_MSG(Client, Response)
+    end.

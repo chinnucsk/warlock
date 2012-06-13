@@ -21,16 +21,14 @@
 -export([new/0, del/0,
          set_node_status/2, get_node_status/1,
          get_nodes/0, get_nodes/1, get_members/0,
-         get_master/0, get_valid_master/0, set_master/2, is_master/0,
+         get_master/0, get_valid_master/0, is_master/0,
+         set_master/1, set_master/2,
          get_lease/0
         ]).
 
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
-%% Default lease time for master node
--define(LEASE_TIME, 5000). % Master lease, 5s
-
 %% Time window before lease expiry we disallow master requests
 %% To be tuned as per clock drift rate
 -define(MIN_LEASE, 100000). % In microseconds, 100ms
@@ -38,7 +36,7 @@
 %% Initial status of the node
 -define(INITIAL_STATUS, valid).
 
-%% Initial lease
+%% Initial lease {erlang_time, ms}
 -define(INITIAL_LEASE, {now(), 0}).
 
 %% Self node
@@ -145,9 +143,13 @@ get_valid_master() ->
             undefined
     end.
 
+%% Used as callback in master election
+set_master([Node, Lease]) ->
+    set_master(Node, Lease).
+
 %% Set a new master node
 set_master(Node, Lease) ->
-    set_node_status(Node, master),
+    set_state(master, [Node]),
     set_state(lease, Lease).
 
 %% Check if the current node is the master
@@ -179,6 +181,9 @@ update_node(Node, OldStatus, NewStatus) ->
     % Update list based in NewStatus
     set_state(NewStatus, get_state(NewStatus) ++ [Node]).
 
-is_lease_valid(Lease) ->
+is_lease_valid({{Mega, Sec, Micro}=_LeaseStart,
+                LeaseTime}) ->
+    %% LeaseTime is in ms. Covert it to micro
+    Lease = {Mega, Sec, (Micro + (LeaseTime * 1000))},
     timer:now_diff(erlang:now(), Lease) > ?MIN_LEASE.
 

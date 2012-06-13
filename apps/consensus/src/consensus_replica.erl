@@ -91,6 +91,14 @@ handle_cast({request, Proposal}, State) ->
     NewState = propose(Proposal, State),
     {noreply, NewState};
 %% Handle leader's decision
+handle_cast({master_decision, Proposal}, State) ->
+    ?LDEBUG("REP ~p::Received message ~p", [self(),
+                                            {master_decision, Proposal}]),
+
+    %% Decision is for master election. Bypass rest of the logic and execute
+    consensus_client:exec(Proposal),
+    {noreply, State};
+%% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
             #state{decisions = Decisions} = State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(),
@@ -146,7 +154,7 @@ propose(Proposal, #state{proposals = Proposals,
         not_found ->
             util_bht:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
-            ?ASYNC_MSG(leader, Message),
+            ?ASYNC_MSG(leaders, Message),
             NewMinSlot = MinSlot + 1,
             State#state{min_slot_num = NewMinSlot};
         % If already decided, ignore it
