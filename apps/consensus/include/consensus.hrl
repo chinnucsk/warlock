@@ -24,3 +24,7 @@
 
 %% Default lease time for master node
 -define(LEASE_TIME, 5000). % Master lease, 5s
+
+%% Time window before lease expiry we disallow master requests
+%% To be tuned as per clock drift rate
+-define(MIN_LEASE, 10). % In milli seconds, 10ms

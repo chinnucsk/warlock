@@ -23,15 +23,13 @@
          get_nodes/0, get_nodes/1, get_members/0,
          get_master/0, get_valid_master/0, is_master/0,
          set_master/1, set_master/2,
-         get_lease/0
+         get_lease/0, get_lease_validity/0
         ]).
 
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
-%% Time window before lease expiry we disallow master requests
-%% To be tuned as per clock drift rate
--define(MIN_LEASE, 100000). % In microseconds, 100ms
+-include("consensus.hrl").
 
 %% Initial status of the node
 -define(INITIAL_STATUS, valid).
@@ -134,9 +132,16 @@ get_master() ->
 get_lease() ->
     get_state(lease).
 
+%% Get the amount of time the lease is valid for, in milli seconds
+get_lease_validity() ->
+    {LeaseStart, LeaseTime} = get_lease(),
+    %% LeaseTime is in ms. Covert it to micro
+    Lease = now_add(LeaseStart, LeaseTime * 1000),
+    erlang:trunc(timer:now_diff(Lease, erlang:now()) / 1000).
+
 %% Get master while making sure it still has the lease
 get_valid_master() ->
-    case is_lease_valid(get_lease()) of
+    case get_lease_validity() > ?MIN_LEASE of
         true ->
             get_master();
         false ->
@@ -181,9 +186,12 @@ update_node(Node, OldStatus, NewStatus) ->
     % Update list based in NewStatus
     set_state(NewStatus, get_state(NewStatus) ++ [Node]).
 
-is_lease_valid({{Mega, Sec, Micro}=_LeaseStart,
-                LeaseTime}) ->
-    %% LeaseTime is in ms. Covert it to micro
-    Lease = {Mega, Sec, (Micro + (LeaseTime * 1000))},
-    timer:now_diff(erlang:now(), Lease) > ?MIN_LEASE.
+now_add ({ Mega, Sec, Micro }, Add) ->
+  proper ({ Mega, Sec, Micro + Add }).
 
+proper (Time = { _, Sec, Micro }) when Sec < 1000000, Micro < 1000000 ->
+  Time;
+proper ({ Mega, Sec, Micro }) when Sec < 1000000 ->
+  proper ({ Mega, Sec + 1, Micro - 1000000 });
+proper ({ Mega, Sec, Micro }) ->
+  proper ({ Mega + 1, Sec - 1000000, Micro }).

@@ -36,6 +36,11 @@
 -define(SELF, self()).
 -define(SELF_NODE, node()).
 -define(FIRST_BALLOT, {0, ?SELF}).
+%% When the leader is preempted => there is a leader with higher ballot. In
+%% order to allow that leader to progress, we can wait for below time.
+%% Should ideally be
+%% http://en.wikipedia.org/wiki/Additive_increase/multiplicative_decrease
+-define(BACKOFF_TIME, 50).  % In milli seconds
 
 -record(state, {
             % Monotonically increasing unique ballot number
@@ -65,8 +70,9 @@ start_link() ->
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
 
-    % Spawn scout with the first ballot
-    consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
+    %% Start a scout if no master is running
+    check_master_start_scout(?FIRST_BALLOT),
+
     {ok, #state{}}.
 
 %% --------------------------------------------------------------------
@@ -140,7 +146,7 @@ handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
     NewBallot = case consensus_util:ballot_greater(ABallot, CurrBallot) of
         true ->
             NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
-            consensus_scout_sup:create({?SELF, NextBallot}),
+            erlang:send_after(?BACKOFF_TIME, ?SELF, spawn_scout),
             NextBallot;
         false ->
             CurrBallot
@@ -152,6 +158,9 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
+handle_info(spawn_scout, #state{ballot_num=Ballot}=State) ->
+    check_master_start_scout(Ballot),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -239,3 +248,14 @@ spawn_master_commander(Ballot) ->
                    },
     PValue = {Ballot, ?MASTER_SLOT, Proposal},
     consensus_commander_sup:create({?SELF, PValue}).
+
+% Start Scout only if we do not have a master with valid lease
+check_master_start_scout(Ballot) ->
+    LeaseTime = consensus_state:get_lease_validity(),
+    case (LeaseTime > ?MIN_LEASE) andalso not consensus_state:is_master() of
+        % Master is active, try to spawn scout after LeaseTime
+        true ->
+            erlang:send_after(LeaseTime, ?SELF, spawn_scout);
+        false ->
+            consensus_scout_sup:create({?SELF, Ballot})
+    end.
