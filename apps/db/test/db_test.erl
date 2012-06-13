@@ -6,7 +6,7 @@
 %% setup code
 %%-------------------------------------------------------------------
 apps() ->
-    [db].
+    [compiler, syntax_tools, lager, db].
 
 app_start() ->
     lists:foreach (fun (App) ->
@@ -45,6 +45,7 @@ db_test_() ->
 simple_run() ->
     Keys = keys(),
     Vals = vals(),
+
     insert_mult(Keys, Vals),
 
     DBVals = get_mult(Keys),
@@ -66,7 +67,7 @@ vals() ->
 insert_mult([], []) ->
     ok;
 insert_mult([Key | KTail], [Val | VTail]) ->
-    db:set(Key, Val),
+    db:set([Key, Val]),
     insert_mult(KTail, VTail).
 
 

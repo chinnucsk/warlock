@@ -133,6 +133,9 @@ handle_cast({master_adopted, CurrBallot},
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {master_adopted, CurrBallot}]),
 
+    % Set a timer to renew the lease
+    erlang:send_after(get_renew_time(), ?SELF, spawn_master_commander),
+
     % Spawn a commander for every proposal
     spawn_commanders(CurrBallot, Proposals),
     {noreply, State#state{active = true}};
@@ -160,6 +163,9 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 handle_info(spawn_scout, #state{ballot_num=Ballot}=State) ->
     check_master_start_scout(Ballot),
+    {noreply, State};
+handle_info(spawn_master_commander, #state{ballot_num=Ballot}=State) ->
+    spawn_master_commander(Ballot),
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -259,3 +265,15 @@ check_master_start_scout(Ballot) ->
         false ->
             consensus_scout_sup:create({?SELF, Ballot})
     end.
+
+% The time after which master leader should try to renew its lease
+get_renew_time() ->
+    LeaseTime = consensus_state:get_lease_validity(),
+    RenewTime = LeaseTime - (10 * ?MIN_LEASE),
+    case RenewTime > 0 of
+        true ->
+            RenewTime;
+        false ->
+            0
+    end.
+
