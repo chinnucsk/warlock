@@ -40,11 +40,14 @@
 %% ------------------------------------------------------------------
 propose(Operation) ->
     Msg = {request, Operation},
-    ?ASYNC_MSG(master_replica, Msg).
+    ?ASYNC_MSG(replicas, Msg).
 
 %% ------------------------------------------------------------------
 %% Executes the callback function in the operation
 %% Called by the replica
+%%
+%% Note: This can be extended to handle different kinds of operation
+%% other than #dop
 %% ------------------------------------------------------------------
 exec(#dop{type = _Type,
           module = M,

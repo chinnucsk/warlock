@@ -87,8 +87,6 @@ handle_cast({propose, {Slot, Proposal}},
     % Add the proposal if we do not have a command for the proposed spot
     case util_ht:get(Slot, Proposals) of
         not_found ->
-            % Note: we could make Slot as the key (better performance), but just
-            % following similar structure as replica to keep things consistent
             util_ht:set(Slot, Proposal, Proposals),
             case Active of
                 true ->

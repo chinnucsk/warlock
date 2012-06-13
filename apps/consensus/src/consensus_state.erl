@@ -35,31 +35,34 @@
 %% To be tuned as per clock drift rate
 -define(MIN_LEASE, 100000). % In microseconds, 100ms
 
-%% Default master for seed node
--define(INITIAL_MASTER, {node(), {erlang:now(), ?LEASE_TIME}}).
-
 %% Initial status of the node
--define(INITIAL_STATUS, down).
+-define(INITIAL_STATUS, valid).
+
+%% Initial lease
+-define(INITIAL_LEASE, {now(), 0}).
+
+%% Self node
+-define(SELF_NODE, node()).
 
 %% Node's initial state
 -define(INITIAL_SYSTEM_STATE, [
             %% Name of the current node
-            {node, node()},
+            {node, ?SELF_NODE},
 
             %% Status of the current node. Start as down
             {status, ?INITIAL_STATUS},
 
             %% Status of all the connected nodes, including self
-            {c_status, [{node(), ?INITIAL_STATUS}]},
+            {c_status, []},
 
             %% Master lease time
-            {lease, {now(), 0}},
+            {lease, ?INITIAL_LEASE},
 
             %% Valid cluster members
             %% master, valid, join, down are disjoint
 
             %% Master node
-            {master, [node()]},
+            {master, []},
 
             %% Valid cluster members
             {valid, []},
@@ -79,8 +82,9 @@
 %% ------------------------------------------------------------------
 new() ->
     ets:new(?TABLE, [set, named_table, public]),
-    % Initialize the node state
-    ets:insert(?TABLE, ?INITIAL_SYSTEM_STATE).
+    % Initialize the node state and add itself to valid member list
+    ets:insert(?TABLE, ?INITIAL_SYSTEM_STATE),
+    set_node_status(?SELF_NODE, valid).
 
 del() ->
     ets:delete(?TABLE).
@@ -122,7 +126,7 @@ get_nodes(Type) when
 
 %% Members of the clusters who can vote
 get_members() ->
-    get_nodes(master) ++ get_nodes(valid).
+    get_nodes(valid).
 
 %% Get the master node
 get_master() ->

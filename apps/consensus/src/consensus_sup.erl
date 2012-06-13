@@ -1,17 +1,32 @@
-
+%%%-------------------------------------------------------------------
+%%% @copyright
+%%% @end
+%%%-------------------------------------------------------------------
+%%% @author Sukumar Yethadka <sukumar@thinkapi.com>
+%%%
+%%% @doc Consensus Sup
+%%%
+%%% Main supervisor for consensus app
+%%% @end
+%%%-------------------------------------------------------------------
+%% TODO: Add specs
 -module(consensus_sup).
-
 -behaviour(supervisor).
 
-%% API
+%% ------------------------------------------------------------------
+%% supervisor Function Exports
+%% ------------------------------------------------------------------
 -export([start_link/0]).
 
+%% ------------------------------------------------------------------
 %% Supervisor callbacks
+%% ------------------------------------------------------------------
 -export([init/1]).
 
-
+%% ------------------------------------------------------------------
+%% Includes and macros
+%% ------------------------------------------------------------------
 -include_lib("util/include/common.hrl").
-
 
 %% Helper macro for declaring children of supervisor
 -define(CHILD(I, Restart, Type),
@@ -24,17 +39,15 @@
 }
 ).
 
-%% ===================================================================
-%% API functions
-%% ===================================================================
-
+%% ------------------------------------------------------------------
+%% supervisor Function Definitions
+%% ------------------------------------------------------------------
 start_link() ->
     supervisor:start_link({local, ?MODULE}, ?MODULE, []).
 
-%% ===================================================================
-%% Supervisor callbacks
-%% ===================================================================
-
+%% ------------------------------------------------------------------
+%% supervisor callbacks
+%% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
     % Init consensus state
@@ -46,12 +59,11 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    %%TODO: Change supervision tree such that commander and scouts die when
-    %% corresponsing leader dies
     Children = lists:flatten(
         [?CHILD(consensus_acceptor, transient, worker),
          ?CHILD(consensus_replica, transient, worker),
          ?CHILD(consensus_scout_sup, permanent, supervisor),
          ?CHILD(consensus_commander_sup, permanent, supervisor),
-         ?CHILD(consensus_leader_sup, permanent, supervisor)]),
+         ?CHILD(consensus_leader, transient, worker)
+         ]),
     {ok, {SupFlags, Children}}.
