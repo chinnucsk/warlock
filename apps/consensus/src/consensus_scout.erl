@@ -49,12 +49,14 @@
 }).
 
 -define(SELF, self()).
+%% Time allowed for the scout to survive being idle
+-define(TIMEOUT, 5000).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
 start_link({Leader, Ballot}) ->
-    gen_server:start_link(?MODULE, [{Leader, Ballot}], []).
+    gen_server:start_link(?MODULE, [{Leader, Ballot}], [{timeout, ?TIMEOUT}]).
 
 
 %% ------------------------------------------------------------------
@@ -71,7 +73,7 @@ init([{Leader, Ballot}]) ->
     Message = {p1a, {?SELF, Ballot}},
     ?ASYNC_MSG(acceptors, Message),
     {ok, #state{leader = Leader,
-                ballot_num = Ballot}}.
+                ballot_num = Ballot}, ?TIMEOUT}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -103,7 +105,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
                 false ->
                     NewState = State#state{pvalues = NewPValues,
                                            vote_count = VoteCount + 1},
-                    {noreply, NewState}
+                    {noreply, NewState, ?TIMEOUT}
             end;
         false ->
             % We have another ballot running. Since acceptor will not send any
@@ -114,7 +116,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
                     % TODO: Some issue with reason for init. Disable check for now
 %%                     ?LERROR("Logic error! Smaller ballot received, ~p ~p", [ABallot, CurrBallot]),
 %%                     {stop, logic_error, State};
-                    {noreply, State};
+                    {noreply, State, ?TIMEOUT};
                 false ->
                     % We have a larger ballot; inform leader and exit
                     ?ASYNC_MSG(Leader, {preempted, ABallot}),
@@ -127,6 +129,9 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
+handle_info(timeout,#state{leader = Leader}=State) ->
+    ?ASYNC_MSG(Leader, scout_timeout),
+    {stop,normal,State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

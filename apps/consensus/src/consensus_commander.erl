@@ -45,12 +45,14 @@
 }).
 
 -define(SELF, self()).
+%% Time allowed for the scout to survive being idle
+-define(TIMEOUT, 5000).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
 start_link({Leader, PValue}) ->
-    gen_server:start_link(?MODULE, [{Leader, PValue}], []).
+    gen_server:start_link(?MODULE, [{Leader, PValue}], [{timeout, ?TIMEOUT}]).
 
 
 %% ------------------------------------------------------------------
@@ -67,7 +69,7 @@ init([{Leader, PValue}]) ->
     Message = {p2a, {?SELF, PValue}},
     ?ASYNC_MSG(acceptors, Message),
     {ok, #state{leader = Leader,
-                pvalue = PValue}}.
+                pvalue = PValue}, ?TIMEOUT}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -95,7 +97,7 @@ handle_cast({p2b, {_Acceptor, ABallot}},
                     {stop, normal, State};
                 false ->
                     NewState = State#state{vote_count = VoteCount + 1},
-                    {noreply, NewState}
+                    {noreply, NewState, ?TIMEOUT}
             end;
         false ->
             % We have another ballot running. Since acceptor will not send any
@@ -106,7 +108,7 @@ handle_cast({p2b, {_Acceptor, ABallot}},
 
 %%                     ?LERROR("Logic error! Smaller ballot received"),
 %%                     {stop, logic_error, State};
-                    {noreply, State};
+                    {noreply, State, ?TIMEOUT};
                 false ->
                     % We have a larger ballot; inform leader and exit
                     ?ASYNC_MSG(Leader, {preempted, ABallot}),
@@ -119,6 +121,9 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
+handle_info(timeout,#state{leader = Leader, pvalue =PValue}=State) ->
+    ?ASYNC_MSG(Leader, {commander_timeout, PValue}),
+    {stop,normal,State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

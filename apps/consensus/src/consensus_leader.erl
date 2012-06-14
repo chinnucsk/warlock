@@ -155,6 +155,18 @@ handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
             CurrBallot
     end,
     {noreply, State#state{active = false, ballot_num = NewBallot}};
+%% TODO: Timeouts most probably happen due to partition (check)
+%% Just restart them from now
+%% Scout has timed out after waiting for replies
+handle_cast(scout_timeout, #state{ballot_num = Ballot} = State) ->
+    check_master_start_scout(Ballot),
+    {noreply, State};
+%% Commander has timed out after waiting for replies
+handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
+    {_OldBallot, Slot, Proposal} = PValue,
+    NewPValue = {Ballot, Slot, Proposal},
+    consensus_commander_sup:create({?SELF, NewPValue}),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -276,4 +288,3 @@ get_renew_time() ->
         false ->
             0
     end.
-
