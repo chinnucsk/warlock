@@ -42,21 +42,39 @@ get(Key, Group, Default) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-%% TODO: Find a better solution for the config file problem
+%% TODO: Find a better solution for the config file problem. Very bad code!
 get_all() ->
     File = case code:priv_dir(?APP) of
         {error,bad_name} ->
-            % Assuming the app is being run from the app folder
-            AppFile = "../../priv/dlock.term",
-            case filelib:is_file(AppFile) of
-                true ->
-                    AppFile;
-                % For running EUnit tests
-                false ->
-                    "../../../priv/dlock.term"
-            end;
+            get_config_file();
         Priv ->
             filename:join([Priv, "dlock.term"])
     end,
     {ok, [AllConfig]} = file:consult(File),
     AllConfig.
+
+get_config_file() ->
+    %% In release folder
+    Try1 = "priv/dlock.term",
+    % Assuming the app is being run from the app folder
+    Try2 = "../../priv/dlock.term",
+    % For running EUnit tests
+    Try3 = "../../../priv/dlock.term",
+
+    case filelib:is_file(Try1) of
+        true ->
+            Try1;
+        false ->
+            case filelib:is_file(Try2) of
+                true ->
+                    Try2;
+                false ->
+                    case filelib:is_file(Try3) of
+                        true ->
+                            Try3;
+                        false ->
+                            {error, file_not_found}
+                    end
+            end
+    end.
+

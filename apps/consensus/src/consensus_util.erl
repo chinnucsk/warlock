@@ -54,8 +54,6 @@ incr_ballot({_IntA, LeaderA}, {IntB, _LeaderB}) ->
 %% Check if the number of votes make it the majority
 %% VoteCount > Number of acceptors
 is_majority(VoteCount) ->
-    Acceptors = consensus_state:get_members(),
-    Result = (erlang:trunc(erlang:length(Acceptors)/2) + 1),
-    ?LDEBUG("MAJORITY: {VoteCount, Acceptors, Result}:: {~p, ~p, ~p}",
-            [VoteCount, Acceptors, Result]),
-    VoteCount >= (erlang:trunc(erlang:length(Acceptors)/2) + 1).
+    Size = consensus_state:get_cluster_size(),
+    ?LDEBUG("MAJORITY: {VoteCount, ClusterSize}:: {~p, ~p}", [VoteCount, Size]),
+    VoteCount >= (erlang:trunc(Size/2) + 1).

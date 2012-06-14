@@ -23,7 +23,8 @@
          get_nodes/0, get_nodes/1, get_members/0,
          get_master/0, get_valid_master/0, is_master/0,
          set_master/1, set_master/2,
-         get_lease/0, get_lease_validity/0
+         get_lease/0, get_lease_validity/0,
+         get_cluster_size/0, set_cluster_size/1
         ]).
 
 %% --------------------------------------------------------------------
@@ -54,10 +55,13 @@
             %% Master lease time
             {lease, ?INITIAL_LEASE},
 
-            %% Valid cluster members
-            %% master, valid, join, down are disjoint
+            %% Number of members needed to form the cluster
+            {cluster_size, 1},
 
-            %% Master node
+            %% Valid cluster members
+            %% valid, join, down are disjoint
+
+            %% Master node, its also present in valid
             {master, []},
 
             %% Valid cluster members
@@ -160,6 +164,14 @@ set_master(Node, Lease) ->
 %% Check if the current node is the master
 is_master() ->
     get_master() =:= [get_state(node)].
+
+%% Get required member count of the cluster
+get_cluster_size() ->
+    get_state(cluster_size).
+
+%% Update the size of the cluster
+set_cluster_size(Size) ->
+    set_state(cluster_size, Size).
 
 %% ------------------------------------------------------------------
 %% Internal functions
