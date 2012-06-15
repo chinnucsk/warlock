@@ -21,7 +21,7 @@
 -export([ballot_greateq/2, ballot_greater/2,
          ballot_lesser/2,
          incr_ballot/2,
-         ballot_equal/2,
+         ballot_equal/2, ballot_same/2,
          is_majority/1]).
 
 -include_lib("util/include/common.hrl").
@@ -38,14 +38,17 @@ ballot_greater({_IntA, _LeaderA}, {0, 0}) ->
 ballot_greater({IntA, _LeaderA}, {IntB, _LeaderB}) ->
     IntA > IntB.
 
-ballot_greateq({IntA, _LeaderA}, {IntB, _LeaderB}) ->
-    IntA >= IntB.
+ballot_lesser({IntA, _LeaderA}, {IntB, _LeaderB}) ->
+    IntA < IntB.
 
-ballot_lesser({IntA, _LeaderA} = BallotA, {IntB, _LeaderB} = BallotB) ->
-    IntA > IntB orelse ballot_equal(BallotA, BallotB).
+ballot_equal({IntA, _LeaderA}, {IntB, _LeaderB}) ->
+    IntA =:= IntB.
 
-ballot_equal(BallotA, BallotB) ->
+ballot_same(BallotA, BallotB) ->
     BallotA =:= BallotB.
+
+ballot_greateq(LeaderA, LeaderB) ->
+    ballot_greater(LeaderA, LeaderB) orelse ballot_equal(LeaderA, LeaderB).
 
 %% Assumes IntB > IntA
 incr_ballot({_IntA, LeaderA}, {IntB, _LeaderB}) ->

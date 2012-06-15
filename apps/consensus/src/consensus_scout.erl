@@ -94,7 +94,7 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
                    leader = Leader,
                    pvalues = PValues} = State) ->
     ?LDEBUG("Received message ~p", [{p1b, {_Acceptor, ABallot, APValues}}]),
-    case consensus_util:ballot_equal(ABallot, CurrBallot) of
+    case consensus_util:ballot_same(ABallot, CurrBallot) of
         true ->
             NewPValues = sets:union(APValues, PValues),
             case consensus_util:is_majority(VoteCount + 1) of

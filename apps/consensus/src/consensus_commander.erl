@@ -89,7 +89,7 @@ handle_cast({p2b, {_Acceptor, ABallot}},
                    vote_count = VoteCount,
                    leader = Leader} = State) ->
     ?LDEBUG("COM ~p::Received message ~p", [self(), {p2b, {_Acceptor, ABallot}}]),
-    case consensus_util:ballot_equal(ABallot, CurrBallot) of
+    case consensus_util:ballot_same(ABallot, CurrBallot) of
         true ->
             case consensus_util:is_majority(VoteCount + 1) of
                 true ->

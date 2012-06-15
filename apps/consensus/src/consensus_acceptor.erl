@@ -94,9 +94,9 @@ handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
         case consensus_util:ballot_greateq(LBallot, CurrBallot) of
             true ->
                 {LBallot, sets:add_element(PValue, Accepted)};
-        false ->
-            {CurrBallot, Accepted}
-    end,
+            false ->
+                {CurrBallot, Accepted}
+        end,
     NewState = State#state{ballot_num = Ballot, accepted = NewAccepted},
     % Response = {p2b, self(); ballot num} /From paper
     Response = {p2b, {?SELF, Ballot}},

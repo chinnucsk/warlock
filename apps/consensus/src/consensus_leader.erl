@@ -149,6 +149,7 @@ handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
     NewBallot = case consensus_util:ballot_greater(ABallot, CurrBallot) of
         true ->
             NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
+            ?LDEBUG("Increment ballot to :: ~p", [NextBallot]),
             erlang:send_after(?BACKOFF_TIME, ?SELF, spawn_scout),
             NextBallot;
         false ->
@@ -276,10 +277,12 @@ spawn_master_commander(Ballot) ->
 % Start Scout only if we do not have a master with valid lease
 check_master_start_scout(Ballot) ->
     LeaseTime = consensus_state:get_lease_validity(),
-    case (LeaseTime > ?MIN_LEASE) andalso not consensus_state:is_master() of
-        % Master is active, try to spawn scout after LeaseTime
+    %% If lease is going to timeout and we are not the master, then start scout
+    case (LeaseTime =< ?MIN_LEASE) andalso not consensus_state:is_master() of
         true ->
-            erlang:send_after(LeaseTime, ?SELF, spawn_scout);
+            ?LDEBUG("Master expired, start scout"),
+            consensus_scout_sup:create({?SELF, Ballot});
         false ->
-            consensus_scout_sup:create({?SELF, Ballot})
+            ?LDEBUG("Master still running, try after some time"),
+            erlang:send_after(LeaseTime, ?SELF, spawn_scout)
     end.
