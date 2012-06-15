@@ -4,12 +4,13 @@
 
 RUNNER_SCRIPT_DIR=$(cd ${0%/*} && pwd)
 
-RUNNER_BASE_DIR=${RUNNER_SCRIPT_DIR%/*}
-RUNNER_ETC_DIR=$RUNNER_BASE_DIR/etc
-RUNNER_LOG_DIR=$RUNNER_BASE_DIR/log
+RUNNER_BASE_DIR={{runner_base_dir}}
+RUNNER_ETC_DIR={{runner_etc_dir}}
+RUNNER_LIB_DIR={{platform_lib_dir}}
+RUNNER_LOG_DIR={{runner_log_dir}}
 # Note the trailing slash on $PIPE_DIR/
-PIPE_DIR=/tmp/$RUNNER_BASE_DIR/
-RUNNER_USER=
+PIPE_DIR={{pipe_dir}}
+RUNNER_USER={{runner_user}}
 
 # Make sure this script is running as the appropriate user
 if [ ! -z "$RUNNER_USER" ] && [ `whoami` != "$RUNNER_USER" ]; then

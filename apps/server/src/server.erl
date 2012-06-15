@@ -21,7 +21,6 @@
 %%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
-%% TODO: Cluster setup functions
 %% TODO: Write specs
 -module(server).
 
