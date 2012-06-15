@@ -41,8 +41,8 @@ ballot_greater({IntA, _LeaderA}, {IntB, _LeaderB}) ->
 ballot_greateq({IntA, _LeaderA}, {IntB, _LeaderB}) ->
     IntA >= IntB.
 
-ballot_lesser({IntA, _LeaderA}, {IntB, _LeaderB}) ->
-    IntA >= IntB.
+ballot_lesser({IntA, _LeaderA} = BallotA, {IntB, _LeaderB} = BallotB) ->
+    IntA > IntB orelse ballot_equal(BallotA, BallotB).
 
 ballot_equal(BallotA, BallotB) ->
     BallotA =:= BallotB.
@@ -55,5 +55,6 @@ incr_ballot({_IntA, LeaderA}, {IntB, _LeaderB}) ->
 %% VoteCount > Number of acceptors
 is_majority(VoteCount) ->
     Size = consensus_state:get_cluster_size(),
-    ?LDEBUG("MAJORITY: {VoteCount, ClusterSize}:: {~p, ~p}", [VoteCount, Size]),
+    ?LDEBUG("MAJORITY: {VoteCount, ClusterSize, Result}:: {~p, ~p, ~p}",
+            [VoteCount, Size, VoteCount >= (erlang:trunc(Size/2) + 1)]),
     VoteCount >= (erlang:trunc(Size/2) + 1).

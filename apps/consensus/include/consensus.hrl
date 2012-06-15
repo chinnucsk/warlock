@@ -25,6 +25,12 @@
 %% Default lease time for master node
 -define(LEASE_TIME, 5000). % Master lease, 5s
 
+%% Default renew lease time for master node
+%% Note: Leader may get the master_adopted message before replica has a
+%% chance to update local state. Keep this in mind when deciding renew time
+%% Needs to be reduced has too long message queues
+-define(RENEW_LEASE_TIME, 4800). % Master lease renew after 4.8s
+
 %% Time window before lease expiry we disallow master requests
 %% To be tuned as per clock drift rate
 -define(MIN_LEASE, 10). % In milli seconds, 10ms

@@ -40,7 +40,7 @@
 %% order to allow that leader to progress, we can wait for below time.
 %% Should ideally be
 %% http://en.wikipedia.org/wiki/Additive_increase/multiplicative_decrease
--define(BACKOFF_TIME, 50).  % In milli seconds
+-define(BACKOFF_TIME, 100).  % In milli seconds
 
 -record(state, {
             % Monotonically increasing unique ballot number
@@ -134,7 +134,7 @@ handle_cast({master_adopted, CurrBallot},
                                             {master_adopted, CurrBallot}]),
 
     % Set a timer to renew the lease
-    erlang:send_after(get_renew_time(), ?SELF, spawn_master_commander),
+    erlang:send_after(?RENEW_LEASE_TIME, ?SELF, renew_master),
 
     % Spawn a commander for every proposal
     spawn_commanders(CurrBallot, Proposals),
@@ -176,8 +176,14 @@ handle_cast(_Msg, State) ->
 handle_info(spawn_scout, #state{ballot_num=Ballot}=State) ->
     check_master_start_scout(Ballot),
     {noreply, State};
-handle_info(spawn_master_commander, #state{ballot_num=Ballot}=State) ->
-    spawn_master_commander(Ballot),
+handle_info(renew_master, #state{ballot_num=Ballot}=State) ->
+    %% Check if we are still master, if yes extend lease
+    case consensus_state:is_master() of
+        true ->
+            spawn_master_commander(Ballot);
+        false ->
+            check_master_start_scout(Ballot)
+    end,
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -276,15 +282,4 @@ check_master_start_scout(Ballot) ->
             erlang:send_after(LeaseTime, ?SELF, spawn_scout);
         false ->
             consensus_scout_sup:create({?SELF, Ballot})
-    end.
-
-% The time after which master leader should try to renew its lease
-get_renew_time() ->
-    LeaseTime = consensus_state:get_lease_validity(),
-    RenewTime = LeaseTime - (10 * ?MIN_LEASE),
-    case RenewTime > 0 of
-        true ->
-            RenewTime;
-        false ->
-            0
     end.

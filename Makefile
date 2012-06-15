@@ -1,3 +1,5 @@
+SHELL := /bin/bash
+
 # Generic app Makefile 
 
 REBAR=./rebar
@@ -64,7 +66,7 @@ dev1 dev2 dev3:
 	mkdir -p dev
 	(cd rel && ../rebar generate target_dir=../dev/$@ overlay_vars=vars/$@_vars.config)
 
-devclean: clean
+devclean:
 	rm -rf dev
 
 ## Dializer
