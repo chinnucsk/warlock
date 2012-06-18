@@ -42,17 +42,18 @@ join([NodeStr]) ->
             {error, not_reachable};
         pong ->
             %% Register the cluster members locally and add self to all the
-            %% members of the cluster
+            %% members of the cluster and
+            %% Increase the cluster_size
             Members = rpc:call(Node, consensus_state, get_members, []),
+            CSize = rpc:call(Node, consensus_state, get_cluster_size, []),
             lists:foreach(fun(Member) ->
                                   consensus_state:set_node_status(Member,
                                                                   valid),
                                   rpc:call(Member, consensus_state,
-                                           set_node_status, [?SELF, valid])
+                                           set_node_status, [?SELF, valid]),
+                                  rpc:call(Member, consensus_state,
+                                           set_cluster_size, [CSize+1])
                           end, Members),
-            %% Increase the cluster_size
-            CSize = rpc:call(Node, consensus_state, get_cluster_size, []),
-            rpc:call(Node, consensus_state, set_cluster_size, [CSize+1]),
             consensus_state:set_cluster_size(CSize+1)
     end.
 
