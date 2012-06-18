@@ -114,6 +114,8 @@ handle_cast({decision, {Slot, Proposal}},
             % Save the decision
             util_bht:set(Slot, Proposal, Decisions),
             % Go through decisions and update state if needed
+            % TODO: check_decisions could take arbitrarily long time. Spawn
+            % helper process? Perhaps blocking is essential for algo. Check
             NewState = check_decisions(State),
             {noreply, NewState};
         _ ->
@@ -164,11 +166,20 @@ propose(Proposal, #state{proposals = Proposals,
 
 %% Executes the decision for the specified slot
 perform(Proposal, #state{slot_num = CurrSlot,
+                         proposals = Proposals,
                          tlog = TLog} = State) ->
     % Add a new entry in transaction log
     util_ht:set(CurrSlot, Proposal, TLog),
     % Let the consensus client handle the callback execution
     consensus_client:exec(Proposal),
+    % Perform cleanup functions
+    % Once the slot is filled, all actors no longer need to maintain
+    % data for that slot
+    % Note: Updating acceptor directly works here becase we maintain 2N+1
+    % replicas instead of just N+1 (as in paper)
+    util_bht:del(CurrSlot, Proposal, Proposals),
+    ?ASYNC_MSG(?LEADER, {slot_decision, CurrSlot}),
+    ?ASYNC_MSG(?ACCEPTOR, {slot_decision, CurrSlot}),
     % Move to the next slot
     State#state{slot_num = CurrSlot + 1}.
 

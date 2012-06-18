@@ -25,18 +25,23 @@
 %% Include files and macros
 %% --------------------------------------------------------------------
 -include_lib("util/include/common.hrl").
+-include("consensus.hrl").
 
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
 
-% TODO: Rename call & cast to sync, async
 sync(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
 
 async(Target, Msg) when is_pid(Target) ->
     ?LDEBUG("MSG {PID, Msg}:: {~p, ~p}", [Target, Msg]),
+    gen_server:cast(Target, Msg);
+async(Target, Msg) when
+  Target == ?LEADER;
+  Target == ?ACCEPTOR;
+  Target == ?REPLICA ->
     gen_server:cast(Target, Msg);
 async(Target, Msg) ->
     {Name, Nodes} = get_add(Target),
@@ -52,17 +57,17 @@ get_add(Target) ->
         % Leader process on the master node
         leaders ->
             Master = consensus_state:get_members(),
-            {consensus_leader, Master};
+            {?LEADER, Master};
         % Replica process on the master node
         master_replica ->
             Master = consensus_state:get_master(),
-            {consensus_replica, Master};
+            {?REPLICA, Master};
         % Acceptors on valid set of nodes
         acceptors ->
             Acceptors = consensus_state:get_members(),
-            {consensus_acceptor, Acceptors};
+            {?ACCEPTOR, Acceptors};
         % Replicas on valid set of nodes
         replicas ->
             Replicas = consensus_state:get_members(),
-            {consensus_replica, Replicas}
+            {?REPLICA, Replicas}
     end.

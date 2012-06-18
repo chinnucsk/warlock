@@ -108,6 +108,10 @@ handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
     Response = {p2b, {?SELF, Ballot}},
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
+%% Garbage collection: Remove decided slots from accepted
+handle_cast({slot_decision, Slot}, #state{accepted=Accepted}=State) ->
+    util_ht:del(Slot, Accepted),
+    {noreply, State};
 %% Unknown message
 handle_cast(_Msg, State) ->
     {noreply, State}.

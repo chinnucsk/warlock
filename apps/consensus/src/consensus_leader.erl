@@ -167,6 +167,10 @@ handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     NewPValue = {Ballot, Slot, Proposal},
     consensus_commander_sup:create({?SELF, NewPValue}),
     {noreply, State};
+%% Garbage collection: Remove decided slots from proposals
+handle_cast({slot_decision, Slot}, #state{proposals=Proposals}=State) ->
+    util_ht:del(Slot, Proposals),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
