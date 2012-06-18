@@ -37,6 +37,7 @@
 
 %% ------------------------------------------------------------------
 %% Propose sends a request to the replica on the master
+%% Note: Here we are assuming Operation is uniquely identified
 %% ------------------------------------------------------------------
 propose(Operation) ->
     Msg = {request, Operation},

@@ -101,19 +101,9 @@ handle_cast({p2b, {_Acceptor, ABallot}},
             end;
         false ->
             % We have another ballot running. Since acceptor will not send any
-            % ballot smaller than what we have, we need not check explicitly.
-            % Added it just to make sure!
-            case consensus_util:ballot_lesser(ABallot, CurrBallot) of
-                true ->
-
-%%                     ?LERROR("Logic error! Smaller ballot received"),
-%%                     {stop, logic_error, State};
-                    {noreply, State, ?TIMEOUT};
-                false ->
-                    % We have a larger ballot; inform leader and exit
-                    ?ASYNC_MSG(Leader, {preempted, ABallot}),
-                    {stop, normal, State}
-            end
+            % ballot smaller than ours, inform leader and exit
+            ?ASYNC_MSG(Leader, {preempted, ABallot}),
+            {stop, normal, State}
     end;
 handle_cast(_Msg, State) ->
     {noreply, State}.

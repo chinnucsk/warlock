@@ -31,12 +31,14 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
-% Special case during init
-ballot_greater({_IntA, _LeaderA}, {0, 0}) ->
-    true;
 % General case
-ballot_greater({IntA, _LeaderA}, {IntB, _LeaderB}) ->
-    IntA > IntB.
+ballot_greater(BallotA, BallotB) ->
+    case max(BallotA, BallotB) of
+        BallotA ->
+            true;
+        BallotB ->
+            false
+    end.
 
 ballot_lesser({IntA, _LeaderA}, {IntB, _LeaderB}) ->
     IntA < IntB.

@@ -37,6 +37,7 @@
             % Replicated transaction log
             % The log is appended once consensus is reached
             % Implemented as a simple hash table
+            % TODO: Change to ordered set to make iteration easier?
             tlog = util_ht:new(),
 
             % Slot is the index of next item in tlog (for new decisions)
@@ -112,7 +113,7 @@ handle_cast({decision, {Slot, Proposal}},
         not_found ->
             % Save the decision
             util_bht:set(Slot, Proposal, Decisions),
-            % Go though decisions and update state if needed
+            % Go through decisions and update state if needed
             NewState = check_decisions(State),
             {noreply, NewState};
         _ ->
@@ -142,7 +143,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
+%% Proposes a new operation to the leaders
 propose(Proposal, #state{proposals = Proposals,
                          decisions = Decisions,
                          min_slot_num = MinSlot} = State) ->
@@ -155,14 +156,13 @@ propose(Proposal, #state{proposals = Proposals,
             util_bht:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
             ?ASYNC_MSG(leaders, Message),
-            NewMinSlot = MinSlot + 1,
-            State#state{min_slot_num = NewMinSlot};
+            State#state{min_slot_num = MinSlot + 1};
         % If already decided, ignore it
         _ ->
             State
     end.
 
-% Executes the decision for the specified slot
+%% Executes the decision for the specified slot
 perform(Proposal, #state{slot_num = CurrSlot,
                          tlog = TLog} = State) ->
     % Add a new entry in transaction log
@@ -172,7 +172,7 @@ perform(Proposal, #state{slot_num = CurrSlot,
     % Move to the next slot
     State#state{slot_num = CurrSlot + 1}.
 
-% Check if we have any decisions that can be run
+%% Check if we have any decisions that can be run
 check_decisions(#state{proposals = Proposals,
                        decisions = Decisions,
                        slot_num = CurrSlot} = State) ->
@@ -191,9 +191,9 @@ check_decisions(#state{proposals = Proposals,
                     NewState = perform(CurrDecision, State),
                     check_decisions(NewState);
                 % We have a proposal and it is the same as the decision
+                % Execute the decision for this slot and continue
                 CurrDecision ->
                     NewState = perform(CurrDecision, State),
-                    % We might have more decisions, check again
                     check_decisions(NewState);
                 % We have a proposal, but it is different from the decision
                 AltProposal ->

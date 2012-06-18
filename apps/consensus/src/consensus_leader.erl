@@ -75,7 +75,6 @@ init([]) ->
 
     {ok, #state{}}.
 
-%% --------------------------------------------------------------------
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
@@ -91,7 +90,8 @@ handle_cast({propose, {Slot, Proposal}},
             #state{proposals = Proposals,
                    active = Active,
                    ballot_num = Ballot} = State) ->
-    ?LDEBUG("LEA ~p::Received message ~p", [self(), {propose, {Slot, Proposal}}]),
+    ?LDEBUG("LEA ~p::Received message ~p", [self(),
+                                            {propose, {Slot, Proposal}}]),
     % Add the proposal if we do not have a command for the proposed spot
     case util_ht:get(Slot, Proposals) of
         not_found ->
@@ -116,13 +116,13 @@ handle_cast({adopted, {CurrBallot, PValues}},
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {adopted, {CurrBallot, PValues}}]),
 
-    %% Now that the ballot is accepted, make self as the master
-    spawn_master_commander(CurrBallot),
-
     % Get all the proposals in PValues with max ballot number and update our
     % proposals with this data
     Pmax = pmax(PValues),
     intersect(Proposals, Pmax),
+
+    %% Now that the ballot is accepted, make self as the master
+    spawn_master_commander(CurrBallot),
 
     {noreply, State};
 %% master_adopted message sent by master_commander when everyone has accepted
@@ -204,6 +204,7 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+%% pmax makes sure that every set of <s, p> has max ballot allotted to it
 % TODO: Naive implementation!! Make it better!
 pmax(PValues) ->
     PList = sets:to_list(PValues),
@@ -239,6 +240,8 @@ get_keyval({A, B, C}) ->
 get_obj({B, C}, A) ->
     {A, B, C}.
 
+%% intersect replaces all local proposals with ones from MaxPValues and also
+%% adds additional entries in MaxPValues to its proposals set
 % TODO: Try to make this faster
 intersect(Proposals, MaxPValues) ->
     intersect_lst(Proposals, sets:to_list(MaxPValues)).
@@ -275,6 +278,7 @@ spawn_master_commander(Ballot) ->
     consensus_commander_sup:create({?SELF, PValue}).
 
 % Start Scout only if we do not have a master with valid lease
+% This is equivalent to monitoring the master / failure detection
 check_master_start_scout(Ballot) ->
     LeaseTime = consensus_state:get_lease_validity(),
     %% If lease is going to timeout and we are not the master, then start scout
