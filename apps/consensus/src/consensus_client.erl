@@ -41,7 +41,8 @@
 %% ------------------------------------------------------------------
 propose(Operation) ->
     Msg = {request, Operation},
-    ?ASYNC_MSG(replicas, Msg).
+    % TODO: Make this configurable
+    ?ASYNC_MSG(master_replica, Msg).
 
 %% ------------------------------------------------------------------
 %% Executes the callback function in the operation

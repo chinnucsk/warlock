@@ -157,7 +157,8 @@ propose(Proposal, #state{proposals = Proposals,
         not_found ->
             util_bht:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
-            ?ASYNC_MSG(leaders, Message),
+            % TODO: Make this configurable
+            ?ASYNC_MSG(master_leader, Message),
             State#state{min_slot_num = MinSlot + 1};
         % If already decided, ignore it
         _ ->

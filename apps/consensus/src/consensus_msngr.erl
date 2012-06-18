@@ -62,6 +62,10 @@ get_add(Target) ->
         master_replica ->
             Master = consensus_state:get_master(),
             {?REPLICA, Master};
+        % Leader process on the master node
+        master_leader ->
+            Master = consensus_state:get_master(),
+            {?LEADER, Master};
         % Acceptors on valid set of nodes
         acceptors ->
             Acceptors = consensus_state:get_members(),
