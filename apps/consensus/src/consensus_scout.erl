@@ -39,7 +39,7 @@
 
             % Set of pvalues where
             % pvalue = {Ballot number, Slot number, Proposal}
-            pvalues = sets:new(),
+            pvalues = orddict:new(),
 
             % Ballot number
             ballot_num,
@@ -96,10 +96,10 @@ handle_cast({p1b, {_Acceptor, ABallot, APValues}},
     ?LDEBUG("Received message ~p", [{p1b, {_Acceptor, ABallot, APValues}}]),
     case consensus_util:ballot_same(ABallot, CurrBallot) of
         true ->
-            NewPValues = sets:union(APValues, PValues),
+            NewPValues = merge_pvalues(APValues, PValues),
             case consensus_util:is_majority(VoteCount + 1) of
                 true ->
-                    Message = {adopted, {ABallot, NewPValues}},
+                    Message = {adopted, {ABallot, orddict:to_list(NewPValues)}},
                     ?ASYNC_MSG(Leader, Message),
                     {stop, normal, State};
                 false ->
@@ -140,3 +140,23 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
+%% Makes sure only the highest ballot for a slot exists
+merge_pvalues([], PValues) ->
+    PValues;
+merge_pvalues([{Key, {Ballot, _Proposal}=Val} | APValues], PValues) ->
+    PValue = (catch orddict:fetch(Key, PValues)),
+    case PValue of
+        % Object not in dict
+        {'EXIT', _} ->
+            orddict:store(Key, Val, PValues);
+        {Key, {CBallot, _CProposal}} ->
+            case consensus_util:ballot_greater(Ballot, CBallot) of
+                % New ballot is larger, replace current
+                true ->
+                    orddict:store(Key, Val, PValues);
+                % Nothing to change
+                false ->
+                    PValues
+            end
+    end,
+    merge_pvalues(APValues, PValues).

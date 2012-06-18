@@ -97,6 +97,7 @@ handle_cast({master_decision, Proposal}, State) ->
                                             {master_decision, Proposal}]),
 
     %% Decision is for master election. Bypass rest of the logic and execute
+    %% We also don't cleanup this slot since we don't store it anywhere
     consensus_client:exec(Proposal),
     {noreply, State};
 %% Handle leader's decision

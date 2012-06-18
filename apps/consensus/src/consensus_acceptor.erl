@@ -95,13 +95,17 @@ handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
 handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
             #state{ballot_num = CurrBallot, accepted = Accepted} = State) ->
     ?LDEBUG("ACC ~p::Received message ~p", [self(), {p2a, {Leader, PValue}}]),
-    Ballot =
-        case consensus_util:ballot_greateq(LBallot, CurrBallot) of
-            true ->
-                util_ht:set(Slot, {LBallot, Proposal}, Accepted),
-                LBallot;
-            false ->
-                CurrBallot
+    Ballot = case {consensus_util:ballot_greateq(LBallot, CurrBallot), Slot} of
+        % Master election only, we don't store for this slot
+        {true, ?MASTER_SLOT} ->
+            LBallot;
+        % Other slots
+        {true, _} ->
+            util_ht:set(Slot, {LBallot, Proposal}, Accepted),
+            LBallot;
+        % No ballot change
+        {false, _} ->
+            CurrBallot
         end,
     NewState = State#state{ballot_num = Ballot},
     % Response = {p2b, self(); ballot num} /From paper
