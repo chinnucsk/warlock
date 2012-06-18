@@ -116,10 +116,9 @@ handle_cast({adopted, {CurrBallot, PValues}},
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {adopted, {CurrBallot, PValues}}]),
 
-    % Get all the proposals in PValues with max ballot number and update our
-    % proposals with this data
-    Pmax = pmax(PValues),
-    intersect(Proposals, Pmax),
+    % Get all the proposals in PValues update our proposals with this data
+    % PValues returned by Acceptor is of the format {Slot, {Ballot, Proposal}}
+    intersect(Proposals, PValues),
 
     %% Now that the ballot is accepted, make self as the master
     spawn_master_commander(CurrBallot),
@@ -204,54 +203,13 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-%% pmax makes sure that every set of <s, p> has max ballot allotted to it
-% TODO: Naive implementation!! Make it better!
-pmax(PValues) ->
-    PList = sets:to_list(PValues),
-    PDict = dict:new(),
-    NewPDict = pmax(PList, PDict),
-    NewPList = lists:map(fun({Key, Value}) -> get_obj(Key, Value) end,
-                             dict:to_list(NewPDict)),
-    sets:from_list(NewPList).
-
-pmax([], PDict) ->
-    PDict;
-pmax([PVal|PList], PDict) ->
-    {Key, Val} = get_keyval(PVal),
-    NewPDict = case dict:find(Key, PDict) of
-        % We already have a proposal with a different ballot num
-        {ok, AltVal} ->
-            % Get one with max ballot num
-            case Val > AltVal of
-                true ->
-                    dict:store(Key, Val, PDict);
-                false ->
-                    PDict
-            end;
-        % Its a new proposal for the specified ballot
-        error ->
-            dict:store(Key, Val, PDict)
-    end,
-    pmax(PList, NewPDict).
-
-get_keyval({A, B, C}) ->
-    {{B, C}, A}.
-
-get_obj({B, C}, A) ->
-    {A, B, C}.
-
-%% intersect replaces all local proposals with ones from MaxPValues and also
+%% intersect replaces all local proposals with ones from PValues and also
 %% adds additional entries in MaxPValues to its proposals set
-% TODO: Try to make this faster
-intersect(Proposals, MaxPValues) ->
-    intersect_lst(Proposals, sets:to_list(MaxPValues)).
-
-intersect_lst(_, []) ->
-    ok;
-intersect_lst(Proposals, [PVal|PList]) ->
-    {_Ballot, Slot, Proposal} = PVal,
-    util_ht:set(Slot, Proposal, Proposals),
-    intersect_lst(Proposals, PList).
+intersect(Proposals, PVals) ->
+    lists:foreach(fun({Slot, {_Ballot, Proposal}}) ->
+                          util_ht:set(Slot, Proposal, Proposals)
+                  end,
+                  PVals).
 
 spawn_commanders(Ballot, Proposals) ->
     spawn_commanders_lst(Ballot, util_ht:to_list(Proposals)).

@@ -34,12 +34,16 @@
 -include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
+-define(BASE_BALLOT, {0, 0}).
+
 -record(state, {
-            ballot_num = {0, 0},
+            ballot_num = ?BASE_BALLOT,
 
             % Set of pvalues where
             % pvalue = {Ballot number, Slot number, Proposal}
-            accepted = sets:new()
+            % Maintain only latest PValue for each slot
+            % Key = slot, val = {Ballot, Proposal}
+            accepted = util_ht:new()
 }).
 
 -define(SELF, self()).
@@ -67,7 +71,6 @@ handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
 
-
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
@@ -83,21 +86,24 @@ handle_cast({p1a, {Leader, LBallot}}, #state{ballot_num = CurrBallot,
     end,
     NewState = State#state{ballot_num = Ballot},
     % Response = {p1b, self(), ballot_num, accepted} /From paper
-    Response = {p1b, {?SELF, Ballot, Accepted}},
+    Response = {p1b, {?SELF, Ballot, util_ht:to_list(Accepted)}},
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
 %% phase 2 a message from some leader
-handle_cast({p2a, {Leader, {LBallot, _Slot, _Proposal} = PValue}},
+%% TODO: Do we need to store ballot_num for each <s, p> since we ignore
+%% it when using it in the leader
+handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
             #state{ballot_num = CurrBallot, accepted = Accepted} = State) ->
     ?LDEBUG("ACC ~p::Received message ~p", [self(), {p2a, {Leader, PValue}}]),
-    {Ballot, NewAccepted} =
+    Ballot =
         case consensus_util:ballot_greateq(LBallot, CurrBallot) of
             true ->
-                {LBallot, sets:add_element(PValue, Accepted)};
+                util_ht:set(Slot, {LBallot, Proposal}, Accepted),
+                LBallot;
             false ->
-                {CurrBallot, Accepted}
+                CurrBallot
         end,
-    NewState = State#state{ballot_num = Ballot, accepted = NewAccepted},
+    NewState = State#state{ballot_num = Ballot},
     % Response = {p2b, self(); ballot num} /From paper
     Response = {p2b, {?SELF, Ballot}},
     ?ASYNC_MSG(Leader, Response),
