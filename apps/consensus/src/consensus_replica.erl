@@ -86,7 +86,13 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
-% Request sent from client
+% READ request sent from client
+handle_cast({request, #dop{type=read}=Proposal}, State) ->
+    ?LDEBUG("REP ~p::Received read message ~p", [self(), {request, Proposal}]),
+    % Execute the decision directly
+    consensus_client:exec(Proposal),
+    {noreply, State};
+% WRITE/Other request sent from client
 handle_cast({request, Proposal}, State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
     NewState = propose(Proposal, State),
