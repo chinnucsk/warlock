@@ -19,13 +19,16 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([new/0, del/1, set/3, keyget/2, valget/2, del/3, to_list/1]).
+-export([new/0, new/1, del/1, set/3, keyget/2, valget/2, del/3, to_list/1]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
 %% ------------------------------------------------------------------
 new() ->
     ets:new(bht, []).
+
+new(Options) ->
+    ets:new(bht, [Options]).
 
 del(Table) ->
     ets:delete(Table).
