@@ -90,7 +90,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({request, #dop{type=read}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received read message ~p", [self(), {request, Proposal}]),
     % Execute the decision directly
-    consensus_client:exec(Proposal),
+    ?CLIENT:exec(Proposal),
     {noreply, State};
 % WRITE/Other request sent from client
 handle_cast({request, Proposal}, State) ->
@@ -104,7 +104,7 @@ handle_cast({master_decision, Proposal}, State) ->
 
     %% Decision is for master election. Bypass rest of the logic and execute
     %% We also don't cleanup this slot since we don't store it anywhere
-    consensus_client:exec(Proposal),
+    ?CLIENT:exec(Proposal),
     {noreply, State};
 %% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
@@ -179,7 +179,7 @@ perform(Proposal, #state{slot_num = CurrSlot,
     % Add a new entry in transaction log
     util_ht:set(CurrSlot, Proposal, TLog),
     % Let the consensus client handle the callback execution
-    consensus_client:exec(Proposal),
+    ?CLIENT:exec(Proposal),
     % Perform cleanup functions
     % Once the slot is filled, all actors no longer need to maintain
     % data for that slot

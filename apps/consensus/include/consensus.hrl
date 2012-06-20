@@ -12,8 +12,7 @@
 -define(LEADER, consensus_leader).
 -define(REPLICA, consensus_replica).
 -define(ACCEPTOR, consensus_acceptor).
-
--define(STATE_MGR, consensus_state).
+-define(CLIENT, consensus_client).
 
 %% Consensus Messenger
 -define(SYNC_MSG(Target, Msg), consensus_msngr:sync(Target, Msg)).
