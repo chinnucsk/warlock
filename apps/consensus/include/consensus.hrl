@@ -30,7 +30,7 @@
 %% Needs to be reduced has too long message queues
 -define(RENEW_LEASE_TIME, 4800). % Master lease renew after 4.8s
 
-%% Time window before lease expiry we disallow master requests
+%% Time window before lease expiry we ignore master requests
 %% To be tuned as per clock drift rate
 -define(MIN_LEASE, 10). % In milli seconds, 10ms
 

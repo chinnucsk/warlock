@@ -34,7 +34,8 @@
 -include("consensus.hrl").
 
 -define(SELF, self()).
--define(FIRST_BALLOT, {0, ?SELF}).
+%% Ballot format {view number, incrementing id, unique leader id}
+-define(FIRST_BALLOT, {1, 0, ?SELF}).
 %% When the leader is preempted => there is a leader with higher ballot. In
 %% order to allow that leader to progress, we can wait for below time.
 %% Should ideally be

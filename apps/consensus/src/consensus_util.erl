@@ -20,7 +20,7 @@
 %% ------------------------------------------------------------------
 -export([ballot_greateq/2, ballot_greater/2,
          ballot_lesser/2,
-         incr_ballot/2,
+         incr_ballot/2, incr_view/1,
          ballot_equal/2, ballot_same/2,
          is_majority/1,
          get_lease/0]).
@@ -33,30 +33,43 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
-% General case
-ballot_greater(BallotA, BallotB) ->
-    case max(BallotA, BallotB) of
-        BallotA ->
-            true;
-        BallotB ->
-            false
-    end.
+ballot_greater({ViewA, _IntA, _LeaderA}, {ViewB, _IntB, _LeaderB})
+  when ViewA < ViewB ->
+    false;
+ballot_greater({ViewA, IntA, _LeaderA}, {ViewB, IntB, _LeaderB})
+  when ViewA =:= ViewB ->
+    IntA > IntB;
+ballot_greater(_BallotA, _BallotB) ->
+    true.
 
-ballot_lesser({IntA, _LeaderA}, {IntB, _LeaderB}) ->
-    IntA < IntB.
+ballot_lesser({ViewA, _IntA, _LeaderA}, {ViewB, _IntB, _LeaderB})
+  when ViewA > ViewB ->
+    false;
+ballot_lesser({ViewA, IntA, _LeaderA}, {ViewB, IntB, _LeaderB})
+  when ViewA =:= ViewB ->
+    IntA < IntB;
+ballot_lesser(_BallotA, _BallotB) ->
+    true.
 
-ballot_equal({IntA, _LeaderA}, {IntB, _LeaderB}) ->
-    IntA =:= IntB.
+ballot_equal({View, Int, _LeaderA}, {View, Int, _LeaderB}) ->
+    true;
+ballot_equal(_BallotA, _BallotB) ->
+    false.
 
 ballot_same(BallotA, BallotB) ->
     BallotA =:= BallotB.
 
-ballot_greateq(LeaderA, LeaderB) ->
-    ballot_greater(LeaderA, LeaderB) orelse ballot_equal(LeaderA, LeaderB).
+ballot_greateq(BallotA, BallotB) ->
+    ballot_greater(BallotA, BallotB) orelse ballot_equal(BallotA, BallotB).
 
-%% Assumes IntB > IntA
-incr_ballot({_IntA, LeaderA}, {IntB, _LeaderB}) ->
-    {IntB + 1, LeaderA}.
+%% Assumes IntB >= IntA
+%% Incrementing ballots across views not allowed
+incr_ballot({View, _IntA, LeaderA}, {View, IntB, _LeaderB}) ->
+    {View, IntB + 1, LeaderA}.
+
+%% View change reset ballot's incrementing id
+incr_view({View, _Int, Leader}) ->
+    {View + 1, 0, Leader}.
 
 %% Check if the number of votes make it the majority
 %% VoteCount > Number of acceptors
