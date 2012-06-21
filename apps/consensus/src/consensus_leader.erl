@@ -34,7 +34,6 @@
 -include("consensus.hrl").
 
 -define(SELF, self()).
--define(SELF_NODE, node()).
 -define(FIRST_BALLOT, {0, ?SELF}).
 %% When the leader is preempted => there is a leader with higher ballot. In
 %% order to allow that leader to progress, we can wait for below time.
@@ -69,10 +68,8 @@ start_link() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
-
-    %% Start a scout if no master is running
-    check_master_start_scout(?FIRST_BALLOT),
-
+    %% Start a scout
+    consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
     {ok, #state{}}.
 
 %% ------------------------------------------------------------------
@@ -85,7 +82,7 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
-%% propse request from replica
+%% propose request from replica
 handle_cast({propose, {Slot, Proposal}},
             #state{proposals = Proposals,
                    active = Active,
@@ -107,6 +104,21 @@ handle_cast({propose, {Slot, Proposal}},
             ok
     end,
     {noreply, State};
+%% propose request from replica, for reconfiguration
+handle_cast({propose_rcfg, {Slot, Proposal}},
+            #state{active = Active,
+                   ballot_num = Ballot} = State) ->
+    ?LDEBUG("LEA ~p::Received message ~p", [self(),
+                                            {propose, {Slot, Proposal}}]),
+    % Don't store the proposal, proceed with the algorithm
+    case Active of
+        true ->
+            PValue = {Ballot, Slot, Proposal},
+            spawn_commander(PValue);
+        false ->
+            ok
+    end,
+    {noreply, State};
 %% adopted message sent by a scout,this message signifies that the current
 %% ballot number ballot num has been adopted by a majority of acceptors
 %% Note: The adopted ballot_num has to match current ballot_num!
@@ -121,9 +133,11 @@ handle_cast({adopted, {CurrBallot, PValues}},
     intersect(Proposals, PValues),
 
     %% Now that the ballot is accepted, make self as the master
-    spawn_master_commander(CurrBallot),
+    %% We pass Ballot around to make sure the ballot is valid when
+    %% we receive master_adopted
+    consensus_rcfg:set_master(CurrBallot),
 
-    {noreply, State};
+    {noreply, State#state{active=true}};
 %% master_adopted message sent by master_commander when everyone has accepted
 %% this leader as their master
 handle_cast({master_adopted, CurrBallot},
@@ -184,7 +198,7 @@ handle_info(renew_master, #state{ballot_num=Ballot}=State) ->
     %% Check if we are still master, if yes extend lease
     case consensus_state:is_master() of
         true ->
-            spawn_master_commander(Ballot);
+            consensus_rcfg:set_master(Ballot);
         false ->
             check_master_start_scout(Ballot)
     end,
@@ -215,6 +229,9 @@ intersect(Proposals, PVals) ->
                   end,
                   PVals).
 
+spawn_commander(PValue) ->
+    consensus_commander_sup:create({?SELF, PValue}).
+
 spawn_commanders(Ballot, Proposals) ->
     spawn_commanders_lst(Ballot, util_ht:to_list(Proposals)).
 
@@ -226,24 +243,12 @@ spawn_commanders_lst(Ballot, [H|L]) ->
     consensus_commander_sup:create({?SELF, PValue}),
     spawn_commanders_lst(Ballot, L).
 
-get_lease() ->
-    {now(), ?LEASE_TIME}.
-
-spawn_master_commander(Ballot) ->
-    Proposal = #dop{type=write,
-                    module=?STATE_MGR,
-                    function=set_master,
-                    args=[?SELF_NODE, get_lease()],
-                    client=undefined
-                   },
-    PValue = {Ballot, ?MASTER_SLOT, Proposal},
-    consensus_commander_sup:create({?SELF, PValue}).
-
 % Start Scout only if we do not have a master with valid lease
 % This is equivalent to monitoring the master / failure detection
 check_master_start_scout(Ballot) ->
     LeaseTime = consensus_state:get_lease_validity(),
     %% If lease is going to timeout and we are not the master, then start scout
+    ?LDEBUG("TEST=============>> ~p ~p", [LeaseTime, consensus_state:is_master()]),
     case (LeaseTime =< ?MIN_LEASE) andalso not consensus_state:is_master() of
         true ->
             ?LDEBUG("Master expired, start scout"),

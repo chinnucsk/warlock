@@ -93,7 +93,7 @@ handle_cast({p2b, {_Acceptor, ABallot}},
         true ->
             case consensus_util:is_majority(VoteCount + 1) of
                 true ->
-                    exec_decision(Leader, CurrBallot, Slot, Proposal),
+                    exec_decision(Slot, Proposal),
                     {stop, normal, State};
                 false ->
                     NewState = State#state{vote_count = VoteCount + 1},
@@ -132,13 +132,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-exec_decision(Leader, Ballot, Slot, Proposal) ->
-    %% Check if this is a master election proposal
-    Message = case Slot of
-        ?MASTER_SLOT ->
-            ?ASYNC_MSG(Leader, {master_adopted, Ballot}),
-            {master_decision, Proposal};
-        _ ->
-            {decision, {Slot, Proposal}}
-    end,
-    ?ASYNC_MSG(replicas, Message).
+exec_decision(Slot, #dop{}=Proposal) ->
+    Msg = {decision, {Slot, Proposal}},
+    ?ASYNC_MSG(replicas, Msg);
+exec_decision(_Slot, #rop{}=Proposal) ->
+    Msg = {decision_rcfg, Proposal},
+    ?ASYNC_MSG(replicas, Msg).

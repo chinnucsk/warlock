@@ -22,7 +22,7 @@
          set_node_status/2, get_node_status/1,
          get_nodes/0, get_nodes/1, get_members/0,
          get_master/0, get_valid_master/0, is_master/0,
-         set_master/1, set_master/2,
+         set_master/2,
          get_lease/0, get_lease_validity/0,
          get_cluster_size/0, set_cluster_size/1
         ]).
@@ -36,10 +36,7 @@
 -define(INITIAL_STATUS, valid).
 
 %% Initial lease {erlang_time, ms}
--define(INITIAL_LEASE, {now(), 0}).
-
-%% Self node
--define(SELF_NODE, node()).
+-define(INITIAL_LEASE, consensus_util:get_lease()).
 
 %% Node's initial state
 -define(INITIAL_SYSTEM_STATE, [
@@ -62,7 +59,8 @@
             %% valid, join, down are disjoint
 
             %% Master node, its also present in valid
-            {master, []},
+            %% Set self as master when starting
+            {master, [?SELF_NODE]},
 
             %% Valid cluster members
             {valid, []},
@@ -151,10 +149,6 @@ get_valid_master() ->
         false ->
             undefined
     end.
-
-%% Used as callback in master election
-set_master([Node, Lease]) ->
-    set_master(Node, Lease).
 
 %% Set a new master node
 set_master(Node, Lease) ->

@@ -93,20 +93,29 @@ handle_cast({request, #dop{type=read}=Proposal}, State) ->
     ?CLIENT:exec(Proposal),
     {noreply, State};
 % WRITE/Other request sent from client
-handle_cast({request, Proposal}, State) ->
+handle_cast({request, #dop{}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
     NewState = propose(Proposal, State),
     {noreply, NewState};
-%% Handle leader's decision
-handle_cast({master_decision, Proposal}, State) ->
-    ?LDEBUG("REP ~p::Received message ~p", [self(),
-                                            {master_decision, Proposal}]),
+% Reconfiguration requests
+handle_cast({request, #rop{type=Type}=Proposal}, State) ->
+    ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
+    Slot = consensus_rcfg:get_slot(Type),
+    Message = {propose_rcfg, {Slot, Proposal}},
+    % TODO: Make this configurable
+    ?ASYNC_MSG(master_leader, Message),
+    {noreply, State};
 
-    %% Decision is for master election. Bypass rest of the logic and execute
+% Handle reconfiguration decision
+handle_cast({decision_rcfg, Proposal}, State) ->
+    ?LDEBUG("REP ~p::Received message ~p", [self(),
+                                            {decision_rcfg, Proposal}]),
+
+    %% Decision is for reconfiguration. Bypass rest of the logic and execute
     %% We also don't cleanup this slot since we don't store it anywhere
     ?CLIENT:exec(Proposal),
     {noreply, State};
-%% Handle leader's decision
+% Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
             #state{decisions = Decisions} = State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(),

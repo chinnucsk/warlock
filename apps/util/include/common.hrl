@@ -76,7 +76,6 @@
           %% Type of operation determine what has to be done
           %% The selective execution is done by the consensus "client"
           %% read, write
-          %% TODO: TYPE of command. Use something else?
           type,
 
           %% Usually server_callback
@@ -91,21 +90,3 @@
           %% Pid of the client to whom reply has to be sent to
           client
 }).
-
-
-%% Client request
-%%      Command + Data = []
-%%      Args
-%%          Client id = Pid of the spawned worker
-
-%% Client request - another possible request type
-%%     status -> return master and cluster info
-
-
-
-%% Server request/operation
-%%      Type - what consensus client should do will depend on this
-%%      Module - server_callback
-%%      Function - server_callback fun
-%%      Args - Command + Data
-%%      Client - Pid of the client to respond to, ignore if empty

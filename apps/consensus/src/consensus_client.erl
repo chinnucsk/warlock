@@ -8,10 +8,9 @@
 %%%
 %%% As a Paxos client, it is responsible for sending the first request
 %%% to the replicas.
-%%% In this modified version, we only send a message to the replica on the
-%%% "master" (node with leader process running).
+%%% In this modified version, we only send a message to the local replica.
 %%% Another modification is that the response is sent directly to the caller
-%%% by the master and this client is bypassed.
+%%% by the local client on the master node.
 %%%
 %%% @end
 %%%
@@ -36,51 +35,43 @@
 %% ------------------------------------------------------------------
 
 %% ------------------------------------------------------------------
-%% Propose sends a request to the replica on the master
+%% Send a request to the local replica
 %% Note: Here we are assuming Operation is uniquely identified
 %% ------------------------------------------------------------------
 propose(Operation) ->
     Msg = {request, Operation},
     % TODO: Make this configurable
-    ?ASYNC_MSG(master_replica, Msg).
+    ?ASYNC_MSG(?REPLICA, Msg).
 
 %% ------------------------------------------------------------------
-%% Executes the callback function in the operation
+%% Execute the callback function in the operation
 %% Called by the replica
-%%
-%% Note: This can be extended to handle different kinds of operation
-%% other than #dop
 %% ------------------------------------------------------------------
 exec(#dop{type = Type,
           module = M,
           function = F,
           args = A,
-          client = Client} = _Operation) ->
+          client = Client}) ->
     ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
 
     case {consensus_state:is_master(), Type} of
-        {true, _} ->
-            respond(Client, exec(M, F, A));
-        {false, write} ->
+        % Regular requests
+        {true, read} ->                         % Read req on master
+            ?ASYNC_MSG(Client, exec(M, F, A));
+        {true, write} ->                        % Write req on master
+            ?ASYNC_MSG(Client, exec(M, F, A));
+        {false, write} ->                       % Write req on member
             exec(M, F, A);
-        {false, read} ->
+        {false, read} ->                        % Read req on member
             ok
-    end.
+    end;
+exec(#rop{}=ROp) ->
+    consensus_rcfg:callback(ROp).
 
 %% ------------------------------------------------------------------
 %% Internal function
 %% ------------------------------------------------------------------
-
 exec(M, F, A) ->
     Result = M:F(A),
-    Response = {response, Result},
     ?LDEBUG("RESULT ==>> ~p", [Result]),
-    Response.
-
-respond(Client, Response) ->
-    case Client of
-        undefined ->
-            ok;
-        _ ->
-            ?ASYNC_MSG(Client, Response)
-    end.
+    {response, Result}.

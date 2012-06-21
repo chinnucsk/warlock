@@ -61,6 +61,9 @@ consensus_test_() ->
      }}.
 
 simple_run() ->
+    % Give the system some time to start
+    timer:sleep(1000),
+
     % Set the current node as master for the test
     Operation1 = #dop{type=write,
                      module=lists,

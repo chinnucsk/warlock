@@ -18,11 +18,11 @@
 -define(SYNC_MSG(Target, Msg), consensus_msngr:sync(Target, Msg)).
 -define(ASYNC_MSG(Target, Msg), consensus_msngr:async(Target, Msg)).
 
-%% Unique slot used only by master
--define(MASTER_SLOT, 0).
-
 %% Default lease time for master node
 -define(LEASE_TIME, 5000). % Master lease, 5s
+
+%% Unique identifier for node
+-define(SELF_NODE, node()).
 
 %% Default renew lease time for master node
 %% Note: Leader may get the master_adopted message before replica has a
@@ -33,3 +33,13 @@
 %% Time window before lease expiry we disallow master requests
 %% To be tuned as per clock drift rate
 -define(MIN_LEASE, 10). % In milli seconds, 10ms
+
+
+%% dop = Reconfiguration operation
+-record(rop, {
+          %% Type of operation determine what has to be done
+          type,
+
+          %% Has data about the request
+          data
+}).
