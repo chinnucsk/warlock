@@ -182,23 +182,29 @@ propose(Proposal, #state{proposals = Proposals,
     end.
 
 %% Executes the decision for the specified slot
-perform(Proposal, #state{slot_num = CurrSlot,
+perform(Proposal, #state{slot_num = Slot,
                          proposals = Proposals,
+                         decisions = Decisions,
                          tlog = TLog} = State) ->
     % Add a new entry in transaction log
-    util_ht:set(CurrSlot, Proposal, TLog),
+    util_ht:set(Slot, Proposal, TLog),
     % Let the consensus client handle the callback execution
     ?CLIENT:exec(Proposal),
     % Perform cleanup functions
     % Once the slot is filled, all actors no longer need to maintain
     % data for that slot
-    % Note: Updating acceptor directly works here becase we maintain 2N+1
+    util_bht:del(Slot, Proposal, Proposals),
+    % We use Decisions map for managing concurrent proposals and to
+    % avoid duplicates (multiple leaders)
+    % Since the current design allows for atmost 1 leader, we can cleanup
+    % Decisions
+    util_bht:del(Slot, Proposal, Decisions),
+    ?ASYNC_MSG(?LEADER, {slot_decision, Slot}),
+    % Cleaning up acceptor directly works here becase we maintain 2N+1
     % replicas instead of just N+1 (as in paper)
-    util_bht:del(CurrSlot, Proposal, Proposals),
-    ?ASYNC_MSG(?LEADER, {slot_decision, CurrSlot}),
-    ?ASYNC_MSG(?ACCEPTOR, {slot_decision, CurrSlot}),
+    ?ASYNC_MSG(?ACCEPTOR, {slot_decision, Slot}),
     % Move to the next slot
-    State#state{slot_num = CurrSlot + 1}.
+    State#state{slot_num = Slot + 1}.
 
 %% Check if we have any decisions that can be run
 check_decisions(#state{proposals = Proposals,
