@@ -180,7 +180,7 @@ handle_cast(scout_timeout, #state{ballot_num = Ballot} = State) ->
 handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     {_OldBallot, Slot, Proposal} = PValue,
     NewPValue = {Ballot, Slot, Proposal},
-    consensus_commander_sup:create({?SELF, NewPValue}),
+    check_master_start_commander(NewPValue),
     {noreply, State};
 %% Garbage collection: Remove decided slots from proposals
 handle_cast({slot_decision, Slot}, #state{proposals=Proposals}=State) ->
@@ -249,7 +249,6 @@ spawn_commanders_lst(Ballot, [H|L]) ->
 check_master_start_scout(Ballot) ->
     LeaseTime = consensus_state:get_lease_validity(),
     %% If lease is going to timeout and we are not the master, then start scout
-    ?LDEBUG("TEST=============>> ~p ~p", [LeaseTime, consensus_state:is_master()]),
     case (LeaseTime =< ?MIN_LEASE) andalso not consensus_state:is_master() of
         true ->
             ?LDEBUG("Master expired, start scout"),
@@ -257,4 +256,15 @@ check_master_start_scout(Ballot) ->
         false ->
             ?LDEBUG("Master still running, try after some time"),
             erlang:send_after(LeaseTime, ?SELF, spawn_scout)
+    end.
+
+% Start Commander only if we do not have a master with valid lease
+check_master_start_commander(NewPValue) ->
+    LeaseTime = consensus_state:get_lease_validity(),
+    %% Restart the commander only if still master and lease valid
+    case consensus_state:is_master() andalso (LeaseTime > ?MIN_LEASE) of
+        true ->
+            consensus_commander_sup:create({?SELF, NewPValue});
+        false ->
+            ok
     end.
