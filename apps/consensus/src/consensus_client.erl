@@ -22,7 +22,8 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([propose/1, exec/1]).
+-export([propose/1, propose_rcfg/1,
+         exec/1]).
 
 %% --------------------------------------------------------------------
 %% Include files and macros
@@ -34,19 +35,29 @@
 %% Public functions
 %% ------------------------------------------------------------------
 
-%% ------------------------------------------------------------------
-%% Send a request to the local replica
+%% Send read request to the master replica
 %% Note: Here we are assuming Operation is uniquely identified
-%% ------------------------------------------------------------------
+propose(#dop{type=read}=Operation) ->
+    Msg = {request, Operation},
+    % TODO: Make this configurable
+    ?ASYNC_MSG(master_replica, Msg);
+%% Send other requests to the local replica
 propose(Operation) ->
     Msg = {request, Operation},
     % TODO: Make this configurable
     ?ASYNC_MSG(?REPLICA, Msg).
 
-%% ------------------------------------------------------------------
+%% Send the request to all replicas
+%% Only the ones with active leaders will succeed, rest are ignored
+%% Paxos will handle multiple active leaders using ballots to make sure
+%% only one master exists
+propose_rcfg(Operation) ->
+    Msg = {request, Operation},
+    % TODO: Make this configurable
+    ?ASYNC_MSG(replicas, Msg).
+
 %% Execute the callback function in the operation
 %% Called by the replica
-%% ------------------------------------------------------------------
 exec(#dop{type = Type,
           module = M,
           function = F,

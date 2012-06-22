@@ -69,7 +69,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
-    %% Start a scout
+    % Start scout
     consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
     {ok, #state{}}.
 
@@ -133,9 +133,9 @@ handle_cast({adopted, {CurrBallot, PValues}},
     % PValues returned by Acceptor is of the format {Slot, {Ballot, Proposal}}
     intersect(Proposals, PValues),
 
-    %% Now that the ballot is accepted, make self as the master
-    %% We pass Ballot around to make sure the ballot is valid when
-    %% we receive master_adopted
+    % Now that the ballot is accepted, make self as the master
+    % We pass Ballot around to make sure the ballot is valid when
+    % we receive master_adopted
     consensus_rcfg:set_master(CurrBallot),
 
     {noreply, State#state{active=true}};
@@ -169,7 +169,7 @@ handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
         false ->
             CurrBallot
     end,
-    {noreply, State#state{active = false, ballot_num = NewBallot}};
+    {noreply, State#state{active=false, ballot_num=NewBallot}};
 %% TODO: Timeouts most probably happen due to partition (check)
 %% Just restart them from now
 %% Scout has timed out after waiting for replies
@@ -186,6 +186,9 @@ handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
 handle_cast({slot_decision, Slot}, #state{proposals=Proposals}=State) ->
     util_ht:del(Slot, Proposals),
     {noreply, State};
+%% Deactivate leader when node is joining a cluster
+handle_cast(cluster_join, State) ->
+    {noreply, State#state{active=false}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -196,7 +199,7 @@ handle_info(spawn_scout, #state{ballot_num=Ballot}=State) ->
     check_master_start_scout(Ballot),
     {noreply, State};
 handle_info(renew_master, #state{ballot_num=Ballot}=State) ->
-    %% Check if we are still master, if yes extend lease
+    % Check if we are still master, if yes extend lease
     case consensus_state:is_master() of
         true ->
             consensus_rcfg:set_master(Ballot);
@@ -247,21 +250,32 @@ spawn_commanders_lst(Ballot, [H|L]) ->
 % Start Scout only if we do not have a master with valid lease
 % This is equivalent to monitoring the master / failure detection
 check_master_start_scout(Ballot) ->
-    LeaseTime = consensus_state:get_lease_validity(),
-    %% If lease is going to timeout and we are not the master, then start scout
-    case (LeaseTime =< ?MIN_LEASE) andalso not consensus_state:is_master() of
+    case consensus_state:is_status(valid) of
         true ->
-            ?LDEBUG("Master expired, start scout"),
-            consensus_scout_sup:create({?SELF, Ballot});
+            % If lease is going to timeout and we are not the master
+            % then start scout
+            LeaseTime = consensus_state:get_lease_validity(),
+            case {(LeaseTime =< ?MIN_LEASE), consensus_state:is_master()} of
+                {true, false} ->
+                    ?LDEBUG("Master expired, start scout"),
+                    consensus_scout_sup:create({?SELF, Ballot});
+                {false, false} ->
+                    ?LDEBUG("Master still running, try after some time"),
+                    erlang:send_after(LeaseTime, ?SELF, spawn_scout);
+                {_, true} ->
+                    ?LWARNING("Master failed to renew lease")
+            end;
+        % Not a valid member, try after some time
+        % TODO: Calibrate this time
         false ->
-            ?LDEBUG("Master still running, try after some time"),
-            erlang:send_after(LeaseTime, ?SELF, spawn_scout)
+            erlang:send_after(?LEASE_TIME, ?SELF, spawn_scout)
     end.
+
 
 % Start Commander only if we do not have a master with valid lease
 check_master_start_commander(NewPValue) ->
     LeaseTime = consensus_state:get_lease_validity(),
-    %% Restart the commander only if still master and lease valid
+    % Restart the commander only if still master and lease valid
     case consensus_state:is_master() andalso (LeaseTime > ?MIN_LEASE) of
         true ->
             consensus_commander_sup:create({?SELF, NewPValue});

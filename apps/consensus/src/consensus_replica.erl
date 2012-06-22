@@ -98,12 +98,13 @@ handle_cast({request, #dop{}=Proposal}, State) ->
     NewState = propose(Proposal, State),
     {noreply, NewState};
 % Reconfiguration requests
+% Note: Requests forwarded only to local leader since it is broadcast
 handle_cast({request, #rop{type=Type}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
     Slot = consensus_rcfg:get_slot(Type),
     Message = {propose_rcfg, {Slot, Proposal}},
     % TODO: Make this configurable
-    ?ASYNC_MSG(master_leader, Message),
+    ?ASYNC_MSG(?LEADER, Message),
     {noreply, State};
 
 % Handle reconfiguration decision

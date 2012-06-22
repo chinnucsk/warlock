@@ -19,12 +19,14 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 -export([new/0, del/0,
-         set_node_status/2, get_node_status/1,
+         set_node_status/1, set_node_status/2, get_node_status/1,
          get_nodes/0, get_nodes/1, get_members/0,
          get_master/0, get_valid_master/0, is_master/0,
          set_master/2,
          get_lease/0, get_lease_validity/0,
-         get_cluster_size/0, set_cluster_size/1
+         get_cluster_size/0, set_cluster_size/1, set_cluster_delta/1,
+         get_state/0, set_state/1,
+         is_status/1
         ]).
 
 %% --------------------------------------------------------------------
@@ -36,7 +38,7 @@
 -define(INITIAL_STATUS, valid).
 
 %% Initial lease {erlang_time, ms}
--define(INITIAL_LEASE, consensus_util:get_lease()).
+-define(INITIAL_LEASE, {now(), 0}).
 
 %% Node's initial state
 -define(INITIAL_SYSTEM_STATE, [
@@ -60,7 +62,7 @@
 
             %% Master node, its also present in valid
             %% Set self as master when starting
-            {master, [?SELF_NODE]},
+            {master, []},
 
             %% Valid cluster members
             {valid, []},
@@ -87,6 +89,16 @@ new() ->
 del() ->
     ets:delete(?TABLE).
 
+% Get the entire system state
+get_state() ->
+    [{Key, get_state(Key)} || {Key, _Val} <- ?INITIAL_SYSTEM_STATE].
+
+% Set state for multiple entries
+set_state(List) ->
+    lists:foreach(fun({Key, Val}) ->
+                          set_state(Key, Val)
+                  end, List).
+
 %% Get status of a specific node in the cluster
 get_node_status(Node) ->
     case lists:keyfind(Node, 1, get_state(c_status)) of
@@ -95,6 +107,10 @@ get_node_status(Node) ->
         _ ->
             undefined
     end.
+
+% Set node status for self
+set_node_status(Status) ->
+    set_node_status(?SELF_NODE, Status).
 
 %% Add a new node or update a node's cluster status
 %% Makes sure master, valid, down, join are disjoint
@@ -159,6 +175,10 @@ set_master(Node, Lease) ->
 is_master() ->
     get_master() =:= [get_state(node)].
 
+%% Check if status of the Node equals Status
+is_status(Status) ->
+    Status =:= get_state(status).
+
 %% Get required member count of the cluster
 get_cluster_size() ->
     get_state(cluster_size).
@@ -167,13 +187,19 @@ get_cluster_size() ->
 set_cluster_size(Size) ->
     set_state(cluster_size, Size).
 
+%% Increase/decrease cluster size atomically
+set_cluster_delta(Delta) ->
+    ets:update_counter(?TABLE, cluster_size, Delta).
+
 %% ------------------------------------------------------------------
 %% Internal functions
 %% ------------------------------------------------------------------
+% Get the state of the system
 get_state(Key) ->
     [{Key, Val}] = ets:lookup(?TABLE, Key),
     Val.
 
+% Set the system state
 set_state(Key, Value) ->
     ets:insert(?TABLE, {Key, Value}).
 

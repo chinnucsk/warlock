@@ -62,10 +62,10 @@ ballot_same(BallotA, BallotB) ->
 ballot_greateq(BallotA, BallotB) ->
     ballot_greater(BallotA, BallotB) orelse ballot_equal(BallotA, BallotB).
 
-%% Assumes IntB >= IntA
-%% Incrementing ballots across views not allowed
-incr_ballot({View, _IntA, LeaderA}, {View, IntB, _LeaderB}) ->
-    {View, IntB + 1, LeaderA}.
+%% Increment only allowed when second ballot is greater
+incr_ballot({ViewA, IntA, LeaderA}, {ViewB, IntB, _LeaderB})
+  when ViewB >= ViewA andalso IntB >= IntA ->
+    {ViewB, IntB + 1, LeaderA}.
 
 %% View change reset ballot's incrementing id
 incr_view({View, _Int, Leader}) ->
