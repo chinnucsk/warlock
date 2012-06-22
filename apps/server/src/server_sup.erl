@@ -1,4 +1,3 @@
-
 -module(server_sup).
 
 -behaviour(supervisor).
@@ -40,4 +39,4 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    {ok, {SupFlags, [?CHILD(server_command_sup, permanent, supervisor)]}}.
+    {ok, {SupFlags, []}}.

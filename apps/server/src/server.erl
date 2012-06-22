@@ -33,12 +33,6 @@
 %% -----------------------------------------------------------------
 %% Private macros
 %% -----------------------------------------------------------------
--define(WORKER, server_worker).
--define(CALL_WORKER(Cmd), try gen_server:call(?WORKER, Cmd)
-                          catch
-                              exit:{timeout, _} -> {error, timeout}
-                          end).
--define(CAST_WORKER(Cmd), gen_server:cast(?WORKER, Cmd)).
 
 %% -----------------------------------------------------------------
 %% Public functions
@@ -96,5 +90,8 @@ del(Key) ->
 
 %% TODO: Check if there is a usecase where we need cast worker
 spawncall_worker(Cmd, Data) ->
-    {ok, Worker} = server_command_sup:create(),
-    gen_server:call(Worker, {request, {Cmd, Data}}).
+    {ok, Worker} = server_command_worker:start_link(),
+    try gen_server:call(Worker, {request, {Cmd, Data}})
+    catch
+        exit:{timeout, _} -> {error, timeout}
+    end.
