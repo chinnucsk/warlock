@@ -74,6 +74,7 @@ handle_call(ping, _From,
 %% GET object
 handle_call({get, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
+    ?LDEBUG("DB GET state:: ~p~n", [Client]),
     Reply = Backend:get(Key, Client),
     {reply, Reply, State};
 %% SET value for given key
@@ -86,6 +87,11 @@ handle_call({del, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:del(Key, Client),
     {reply, Reply, State};
+%% DELETE object
+handle_call(reset, _From,
+            #state{module=Backend, client=Client} = State) ->
+    {ok, _NewTable} = Backend:reset(Client),
+    {reply, ok, State};
 %% Unknown command
 handle_call(_Request, _From, State) ->
     Reply = {error, unknown_command},

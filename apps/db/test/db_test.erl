@@ -53,7 +53,12 @@ simple_run() ->
 
     delete_mult(Keys),
     DDBVals = get_mult(Keys),
-    ?assertNotEqual(Vals, DDBVals).
+    ?assertNotEqual(Vals, DDBVals),
+
+    insert_mult(Keys, Vals),
+    db:reset(),
+    RDBVals = get_mult(Keys),
+    ?assertNotEqual(Vals, RDBVals).
 
 %%-------------------------------------------------------------------
 %% internal functions

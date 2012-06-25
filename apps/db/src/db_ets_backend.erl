@@ -20,7 +20,8 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([start/0, start/1, ping/1, get/2, set/3, del/2]).
+-export([start/0, start/1, ping/1, reset/1,
+         get/2, set/3, del/2]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
@@ -34,6 +35,11 @@ start() ->
 -spec start(list()) -> {ok, #client{}}.
 start([Name | Options]) ->
     {ok, #client{inst=ets:new(Name, Options)}}.
+
+-spec reset(Client::#client{}) -> {ok, #client{}}.
+reset(#client{inst=Table}) ->
+    ets:delete(Table),
+    ?MODULE:start().
 
 -spec ping(Client::#client{}) -> ping | pang.
 ping(#client{inst=Table}) ->
