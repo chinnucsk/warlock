@@ -87,10 +87,15 @@ handle_call({del, Key}, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:del(Key, Client),
     {reply, Reply, State};
-%% DELETE object
+%% RESET db
 handle_call(reset, _From,
             #state{module=Backend, client=Client} = State) ->
     {ok, _NewTable} = Backend:reset(Client),
+    {reply, ok, State};
+%% BACKUP db
+handle_call({backup, File}, _From,
+            #state{module=Backend, client=Client} = State) ->
+    ok = Backend:backup(File, Client),
     {reply, ok, State};
 %% Unknown command
 handle_call(_Request, _From, State) ->

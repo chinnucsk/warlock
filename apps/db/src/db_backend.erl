@@ -20,8 +20,10 @@ behaviour_info(callbacks) ->
     [{start, 0},                % Start with default options
      {start, 1},                % Options
      {ping, 1},                 % Client
+     {reset, 1},                % Client
+     {backup, 2},               % Client
      {get, 2},                  % {Key, Client}
      {set, 3},                  % {Key, Value, Client}
-     {del, 2}];              % {Key, Client}
+     {del, 2}];                 % {Key, Client}
 behaviour_info(_Other) ->
     undefined.
