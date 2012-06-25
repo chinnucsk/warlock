@@ -20,7 +20,7 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([start/0, start/1, ping/1, reset/1, backup/2,
+-export([start/0, start/1, ping/1, reset/1, backup/2, restore/2,
          get/2, set/3, del/2]).
 
 %% ------------------------------------------------------------------
@@ -44,6 +44,11 @@ reset(#client{inst=Table}) ->
 -spec backup(File::string(), Client::#client{}) -> {ok, success}.
 backup(File, #client{inst=Table}) ->
     ets:tab2file(Table, File).
+
+-spec restore(File::string(), Client::#client{}) -> {ok, success}.
+restore(File, #client{inst=Table}) ->
+    ets:delete(Table),
+    ets:file2tab(File).
 
 -spec ping(Client::#client{}) -> ping | pang.
 ping(#client{inst=Table}) ->

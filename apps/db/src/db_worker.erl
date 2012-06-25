@@ -97,6 +97,11 @@ handle_call({backup, File}, _From,
             #state{module=Backend, client=Client} = State) ->
     ok = Backend:backup(File, Client),
     {reply, ok, State};
+%% RESTORE db
+handle_call({restore, File}, _From,
+            #state{module=Backend, client=Client} = State) ->
+    {ok, _} = Backend:restore(File, Client),
+    {reply, ok, State};
 %% Unknown command
 handle_call(_Request, _From, State) ->
     Reply = {error, unknown_command},
