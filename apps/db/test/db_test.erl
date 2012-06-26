@@ -46,6 +46,7 @@ simple_run() ->
     Keys = keys(),
     Vals = vals(),
 
+    % General test
     insert_mult(Keys, Vals),
 
     DBVals = get_mult(Keys),
@@ -55,10 +56,26 @@ simple_run() ->
     DDBVals = get_mult(Keys),
     ?assertNotEqual(Vals, DDBVals),
 
+    % Reset test
     insert_mult(Keys, Vals),
     db:reset(),
-    RDBVals = get_mult(Keys),
-    ?assertNotEqual(Vals, RDBVals).
+    ResetDBVals = get_mult(Keys),
+    ?assertNotEqual(Vals, ResetDBVals),
+
+    % Backup test
+    insert_mult(Keys, Vals),
+    File = "./tmp-db-test",
+    db:backup(File),
+    {Result, _ResultData} = file:read_file_info(File),
+    ?assertEqual(ok, Result),
+
+    % Clean table and restore from file
+    db:reset(),
+    db:restore(File),
+    RestoreDBVals = get_mult(Keys),
+    ?assertEqual(Vals, RestoreDBVals),
+
+    file:delete(File).
 
 %%-------------------------------------------------------------------
 %% internal functions
