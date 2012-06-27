@@ -55,7 +55,7 @@ start(ReplyPid) ->
     FileName = conf_helper:get(file, replication),
 
     % Start listener
-    {ok, Listen} = gen_tcp:listen(Port, [{active,false}]),
+    {ok, Listen} = gen_tcp:listen(Port, [{active,false}, {reuseaddr, true}]),
     erlang:send(ReplyPid, ok),
     {ok, Accept} = gen_tcp:accept(Listen),
 
@@ -76,4 +76,5 @@ start(ReplyPid) ->
     ?LDEBUG("server_sender::Sending file to receiver"),
     gen_tcp:send(Socket, File),
 
-    gen_tcp:close(Socket).
+    gen_tcp:close(Socket),
+    gen_tcp:close(Listen).
