@@ -1,4 +1,4 @@
--module(server_test).
+-module(server_callback_test).
 
 -include_lib("eunit/include/eunit.hrl").
 -include_lib("util/include/common.hrl").
@@ -51,14 +51,38 @@ simple_run() ->
     timer:sleep(100),
 
     {Key, Val} = {kkey, vval},
-    ?assertEqual({ok, success}, server:set(Key, Val)),
+    {Key1, Val1} = {kkey1, vval1},
 
-    ?assertEqual({ok, Val}, server:get(Key)),
+    % Set server_callback as inactive, queue requests
 
-    ?assertEqual({ok, success}, server:del(Key)),
+    server_callback:set_inactive(),
 
-    ?assertEqual({ok, not_found}, server:get(Key)).
+    ?assertEqual({ok, queued}, server:set(Key, Val)),
+    ?assertEqual({ok, queued}, server:set(Key1, Val1)),
 
+    ?assertEqual({ok, inactive}, server:get(Key)),
+    ?assertEqual({ok, inactive}, server:get(Key1)),
+
+    ?assertEqual({ok, queued}, server:del(Key)),
+
+    ?assertEqual({ok, inactive}, server:get(Key)),
+
+    % Set server_callback back to active and see if decisions are processed
+
+    server_callback:set_active(),
+    timer:sleep(100),
+
+    case server_callback:is_active() of
+        true ->
+            ?assertEqual({ok, not_found}, server:get(Key)),
+            ?assertEqual({ok, Val1}, server:get(Key1)),
+
+            ?assertEqual({ok, success}, server:del(Key1)),
+
+            ?assertEqual({ok, not_found}, server:get(Key1));
+        false ->
+            ok
+    end.
 
 %%-------------------------------------------------------------------
 %% internal functions

@@ -28,11 +28,17 @@
 %% Public interface
 %% -----------------------------------------------------------------
 -export([ping/0, ping_service/0, ping_backend/0,
-         get/1, set/2, del/1]).
+         get/1, set/2, del/1,
+         receive_complete/1, ready_repl/1,
+         repl/1]).
 
 %% -----------------------------------------------------------------
-%% Private macros
+%% Private macros and include files
 %% -----------------------------------------------------------------
+-include_lib("util/include/common.hrl").
+-include("server.hrl").
+
+-define(SELF_NODE, node()).
 
 %% -----------------------------------------------------------------
 %% Public functions
@@ -75,7 +81,7 @@ get(Key) ->
 %% Store an object in the database.
 %%-------------------------------------------------------------------
 set(Key, Value) ->
-    spawncall_worker(set, {Key, Value}).
+    spawncall_worker(set, [Key, Value]).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -83,6 +89,50 @@ set(Key, Value) ->
 %%-------------------------------------------------------------------
 del(Key) ->
     spawncall_worker(del, Key).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Join this node to the cluster
+%%-------------------------------------------------------------------
+repl(SeedNode) ->
+    ?LDEBUG("Replicating from seed node: ~p", [SeedNode]),
+    % Get a member node from the master from which data is in sync
+    SourceNode = rpc:call(SeedNode, consensus, get_sync_member, []),
+    % Send a message to SourceNode to get ready
+    {ok, _Pid} = rpc:call(SourceNode, server, ready_repl, [?SELF_NODE]),
+    % Start receiver
+    server_receiver:start_link(SourceNode).
+
+
+%% ------------------------------------------------------------------
+%% Exported Function Definitions to be only used within the app
+%% ------------------------------------------------------------------
+%%-------------------------------------------------------------------
+%% @doc
+%% Fun called by server_receiver once process is complete
+%%-------------------------------------------------------------------
+receive_complete(SourceNode) ->
+    % DB backup is now synced. Add self to cluster
+    Callback = {server_callback, trig_active, []},
+    consensus:add_repl_member(SourceNode, Callback).
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Some node requests to replicate from this node
+%%-------------------------------------------------------------------
+ready_repl(FromNode) ->
+    % Check if replication is already in progress
+    case server_callback:is_active() of
+        true ->
+            % Set server as inactive
+            server_callback:set_inactive(),
+            % Add the receiving node as subscriber for queued decisions
+            server_callback:add_subscriber(FromNode),
+            % Start sender
+            {ok, _Pid} = server_sender:start_link();
+        false ->
+            {error, repl_in_progress}
+    end.
 
 %% ------------------------------------------------------------------
 %% Internal Function Definitions

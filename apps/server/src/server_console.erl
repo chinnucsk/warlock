@@ -19,7 +19,7 @@
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([join/1]).
+-export([join/1, repl/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -41,7 +41,21 @@ join([NodeStr]) ->
         pang ->
             {error, not_reachable};
         pong ->
-            consensus_rcfg:join(Node)
+            consensus:rcfg_join(Node)
+    end.
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Replicate from some (non-master) node in the cluster
+%%-------------------------------------------------------------------
+repl([NodeStr]) ->
+    Node = str_to_node(NodeStr),
+    %% Connect to the node
+    case net_adm:ping(Node) of
+        pang ->
+            {error, not_reachable};
+        pong ->
+            server:repl(Node)
     end.
 
 %% ------------------------------------------------------------------

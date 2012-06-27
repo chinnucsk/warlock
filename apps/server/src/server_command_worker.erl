@@ -76,7 +76,7 @@ init([]) ->
 %% accept other commands
 handle_call({request, {Cmd, Data}}, From, _State) ->
     Operation = get_operation({Cmd, Data, ?CID}),
-    consensus_client:propose(Operation),
+    consensus:propose(Operation),
     {noreply, #state{operation=Operation, caller=From}};
 handle_call(_Request, _From, State) ->
     Reply = ok,
@@ -114,7 +114,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
 get_operation({Cmd, Data, ClientId}) ->
     #dop{
          type = server_util:get_type(Cmd),

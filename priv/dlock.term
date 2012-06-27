@@ -16,5 +16,17 @@
                    %% owns it. Can be replaced once we have a table manager
                    {options, [named_table, public]}
                   ]
+ },
+
+ {replication, [
+                %% IP address of self
+                {ip, "127.0.0.1"},
+
+                %% Port to listen for incoming connections
+                {port, 9678},
+
+                %% Location where db dump is stored for replication
+                {file, "/tmp/data-dump.ddb"}
+               ]
  }
 ].

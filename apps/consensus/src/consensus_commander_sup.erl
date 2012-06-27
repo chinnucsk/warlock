@@ -76,4 +76,3 @@ init([]) ->
               [?WORKER]},
 
     {ok, {SupFlags, [AChild]}}.
-
