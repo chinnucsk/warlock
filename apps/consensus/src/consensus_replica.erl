@@ -13,13 +13,14 @@
 %%% @since : 05 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
+%% TODO: Store view in local state and ignore decisions from old views
 -module(consensus_replica).
 -behaviour(gen_server).
 
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0]).
+-export([start_link/0, reset/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -34,13 +35,7 @@
 -include("consensus.hrl").
 
 -record(state, {
-            % Replicated transaction log
-            % The log is appended once consensus is reached
-            % Implemented as a simple hash table
-            % TODO: Change to ordered set to make iteration easier?
-            tlog = util_ht:new(),
-
-            % Slot is the index of next item in tlog (for new decisions)
+            % Slot is the index of next item (for new decisions)
             slot_num = 1,
 
             % Minimum available open slot number in the set (for new proposals)
@@ -50,13 +45,13 @@
             % A set of {slot number, command} pairs for proposals that the
             % replica has made in the past
             % Implemented as a bidirectional hash table (BHT)
-            proposals = util_bht:new(),
+            proposals,
 
             % Another set of {slot number, command} pairs for decided slots
             % Implemented as a bidirectional hash table
             % TODO: It is possible to use proposals BHT itself in combination
             % with slot_num for decisions. Optimize it.
-            decisions = util_bht:new()
+            decisions
 }).
 
 %% ------------------------------------------------------------------
@@ -64,6 +59,9 @@
 %% ------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+reset() ->
+    gen_server:cast(?MODULE, reset).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -74,7 +72,7 @@ start_link() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
-    {ok, #state{}}.
+    {ok, #state{proposals=util_bht:new(), decisions=util_bht:new()}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -138,6 +136,11 @@ handle_cast({decision, {Slot, Proposal}},
         _ ->
             {noreply, State}
     end;
+handle_cast(reset, #state{proposals=Proposals,
+                          decisions = Decisions}) ->
+    util_bht:reset(Proposals),
+    util_bht:reset(Decisions),
+    {noreply, #state{proposals=Proposals, decisions=Decisions}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -184,11 +187,9 @@ propose(Proposal, #state{proposals = Proposals,
 
 %% Executes the decision for the specified slot
 perform(Proposal, #state{slot_num = Slot,
+                         min_slot_num = MinSlot,
                          proposals = Proposals,
-                         decisions = Decisions,
-                         tlog = TLog} = State) ->
-    % Add a new entry in transaction log
-    util_ht:set(Slot, Proposal, TLog),
+                         decisions = Decisions} = State) ->
     % Let the consensus client handle the callback execution
     ?CLIENT:exec(Proposal),
     % Perform cleanup functions
@@ -205,7 +206,15 @@ perform(Proposal, #state{slot_num = Slot,
     % replicas instead of just N+1 (as in paper)
     ?ASYNC_MSG(?ACCEPTOR, {slot_decision, Slot}),
     % Move to the next slot
-    State#state{slot_num = Slot + 1}.
+    NewSlot = Slot + 1,
+    % When not master, MinSlot lags, this fixes it
+    NewMinSlot = case MinSlot < NewSlot of
+        true ->
+            NewSlot;
+        false ->
+            MinSlot
+    end,
+    State#state{slot_num=NewMinSlot, min_slot_num=NewMinSlot}.
 
 %% Check if we have any decisions that can be run
 check_decisions(#state{proposals = Proposals,

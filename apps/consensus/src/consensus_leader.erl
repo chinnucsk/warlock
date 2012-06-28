@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0]).
+-export([start_link/0, reset/0, incr_view/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -59,6 +59,14 @@
 %% ------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+%% Reset the leaders local state
+reset() ->
+    gen_server:cast(?MODULE, reset).
+
+%% Increment the leader's view by changing the ballot and restarting election
+incr_view() ->
+    gen_server:cast(?MODULE, incr_view).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -189,6 +197,18 @@ handle_cast({slot_decision, Slot}, #state{proposals=Proposals}=State) ->
 %% Deactivate leader when node is joining a cluster
 handle_cast(cluster_join, State) ->
     {noreply, State#state{active=false}};
+%% Reset leader local state
+handle_cast(reset, #state{proposals=Proposals}=State) ->
+    util_ht:reset(Proposals),
+    {noreply, State};
+%% Increment leader view
+handle_cast(incr_view, #state{ballot_num=Ballot, proposals=Proposals}=State) ->
+    NewBallot = consensus_util:incr_view(Ballot),
+    util_ht:reset(Proposals),
+    % Run scout round to push it to acceptors
+    % TODO: Test possibility of two scouts running
+    consensus_scout_sup:create({?SELF, NewBallot}),
+    {noreply, State#state{ballot_num=NewBallot}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 

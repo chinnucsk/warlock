@@ -16,7 +16,8 @@
 %% ------------------------------------------------------------------
 %% Function Exports
 %% ------------------------------------------------------------------
--export([new/0, new/1, del/1, set/3, get/2, del/2, to_list/1]).
+-export([new/0, new/1, del/1, to_list/1, reset/1,
+         set/3, get/2, del/2]).
 
 %% ------------------------------------------------------------------
 %% Function Definitions
@@ -50,3 +51,7 @@ del(Key, Table) ->
 
 to_list(Table) ->
     ets:tab2list(Table).
+
+% TODO: Check if dropping the table and creating a new table it is faster
+reset(Table) ->
+    ets:delete_all_objects(Table).

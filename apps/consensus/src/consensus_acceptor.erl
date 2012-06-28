@@ -20,7 +20,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0]).
+-export([start_link/0, reset/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -52,6 +52,9 @@
 %% ------------------------------------------------------------------
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
+
+reset() ->
+    gen_server:cast(?MODULE, reset).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -116,6 +119,10 @@ handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
 %% Garbage collection: Remove decided slots from accepted
 handle_cast({slot_decision, Slot}, #state{accepted=Accepted}=State) ->
     util_ht:del(Slot, Accepted),
+    {noreply, State};
+%% Reset acceptor state
+handle_cast(reset, #state{accepted=Accepted}=State) ->
+    util_ht:reset(Accepted),
     {noreply, State};
 %% Unknown message
 handle_cast(_Msg, State) ->

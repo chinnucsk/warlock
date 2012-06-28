@@ -37,8 +37,8 @@
 %% Public functions
 %% -----------------------------------------------------------------
 %% Join an existing cluster
-%% To be called only after this node's dataset etc. is in sync with the
-%% cluster
+%% To be called only after this node's dataset and consensus app state
+%% is in sync with the cluster
 %% This increases the cluster size
 join(SeedNode) ->
     add_member(empty, SeedNode, 1, undefined).
@@ -95,11 +95,24 @@ callback(#rop{type=join,
         false ->
             ok
     end;
-    % TODO: Increment view(?), reset internal data (?)
+%% This is the stoppable state machine part
+%% Consensus app state is stopped and view incremented allowing the entire
+%% state to start fresh. All decisions made in the previous view and not
+%% committed are dropped. Those requests will timeout and client has to resend
 callback(#rop{type=repl_join,
               data={SourceNode, Node, ClusterDelta, {M, F, A}}}) ->
+    IsMaster = consensus_state:is_master(),
+
     % Add the node as a valid member, update cluster size
     cluster_add_node(Node, ClusterDelta),
+
+    % Reset all the consensus actors' state and increment "view"
+    case IsMaster of
+        true -> ?LEADER:incr_view();
+        false -> ?LEADER:reset()
+    end,
+    ?REPLICA:reset(),
+    ?ACCEPTOR:reset(),
 
     % If source node, inform execute callback
     case SourceNode =:= ?SELF_NODE of
@@ -110,14 +123,13 @@ callback(#rop{type=repl_join,
     end,
 
     % If master, activate the new member
-    case consensus_state:is_master() of
+    case IsMaster of
         true ->
             rpc:call(Node,
                      consensus_rcfg, cluster_add_node, [Node, ClusterDelta]);
         false ->
             ok
     end.
-    % TODO: Increment view(?), reset internal data (?)
 
 %% Addition of new node to the cluster - update local state
 cluster_add_node(Node, ClusterDelta) ->

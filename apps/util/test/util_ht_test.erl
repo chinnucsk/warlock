@@ -12,12 +12,20 @@ simple_tst_() ->
     HT = util_ht:new(),
     Keys = keys(),
     Vals = vals(),
+
     insert_mult(HT, Keys, Vals),
     HTVals = get_mult(HT, Keys),
     ?assertEqual(Vals, HTVals),
+
     delete_mult(HT, Keys),
     DHTVals = get_mult(HT, Keys),
     ?assertNotEqual(Vals, DHTVals),
+
+    insert_mult(HT, Keys, Vals),
+    util_ht:reset(HT),
+    RHTVals = get_mult(HT, Keys),
+    ?assertNotEqual(Vals, RHTVals),
+
     util_ht:del(HT).
 
 %%-------------------------------------------------------------------
