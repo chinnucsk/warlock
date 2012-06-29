@@ -26,6 +26,11 @@ simple_tst_() ->
     RHTVals = get_mult(HT, Keys),
     ?assertNotEqual(Vals, RHTVals),
 
+    insert_mult(HT, Keys, Vals),
+    ListData = util_ht:to_list(HT),
+    ?assertEqual(lists:keysort(1, ListData),
+                 lists:keysort(1, lists:zip(Keys, Vals))),
+
     util_ht:del(HT).
 
 %%-------------------------------------------------------------------

@@ -33,6 +33,17 @@ simple_tst_() ->
     DHTKeys = getv_mult(HT, Vals),
     ?assertNotEqual(Keys, DHTKeys),
 
+    % Check if reset
+    insert_mult(HT, Keys, Vals),
+    util_bht:reset(HT),
+    RHTKeys = getv_mult(HT, Vals),
+    ?assertNotEqual(Keys, RHTKeys),
+
+    insert_mult(HT, Keys, Vals),
+    ListData = util_bht:to_list(HT),
+    ?assertEqual(lists:keysort(1, ListData),
+                 lists:keysort(1, lists:zip(Keys, Vals))),
+
     util_bht:del(HT).
 
 %%-------------------------------------------------------------------
