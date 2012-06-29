@@ -41,7 +41,7 @@ reset(#client{inst=Table}) ->
     ets:delete(Table),
     ?MODULE:start().
 
--spec backup(File::string(), Client::#client{}) -> {ok, success}.
+-spec backup(File::string(), Client::#client{}) -> ok | {error, _}.
 backup(File, #client{inst=Table}) ->
     ets:tab2file(Table, File).
 

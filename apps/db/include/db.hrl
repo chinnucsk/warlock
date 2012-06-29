@@ -18,6 +18,9 @@
 
 -type value() :: term().
 
+-type tid() :: integer().
+-type table() :: atom() | tid().
+
 %% ------------------------------------------------------------------
 %% Record definitions
 %% ------------------------------------------------------------------
@@ -28,5 +31,5 @@
              %% type,  TODO: Remove if this is not required
 
              %% Instance of the client
-             inst
+             inst :: table()
 }).

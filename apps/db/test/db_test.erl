@@ -43,6 +43,8 @@ db_test_() ->
      }}.
 
 simple_run() ->
+    ?assertEqual(pong, db:ping()),
+
     Keys = keys(),
     Vals = vals(),
 

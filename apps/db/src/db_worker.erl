@@ -47,9 +47,11 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
+-spec start_link() -> {error, _} | {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
 
+-spec ping() -> pong | pang.
 ping() ->
     gen_server:call(?MODULE, ping).
 

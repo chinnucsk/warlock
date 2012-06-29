@@ -16,6 +16,7 @@
 
 -export([behaviour_info/1]).
 
+-spec behaviour_info(atom()) -> 'undefined' | [{atom(), arity()}].
 behaviour_info(callbacks) ->
     [{start, 0},                % Start with default options
      {start, 1},                % Options

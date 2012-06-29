@@ -46,6 +46,7 @@ ping() ->
 %% @doc
 %% Cleans db by deleting all objects
 %%-------------------------------------------------------------------
+-spec reset() -> ok.
 reset() ->
     ?CALL_WORKER(reset).
 
@@ -53,6 +54,7 @@ reset() ->
 %% @doc
 %% Backup db to given file
 %%-------------------------------------------------------------------
+-spec backup(string()) -> ok.
 backup(File) ->
     ?CALL_WORKER({backup, File}).
 
@@ -60,6 +62,7 @@ backup(File) ->
 %% @doc
 %% Restores db from given file
 %%-------------------------------------------------------------------
+-spec restore(string()) -> ok.
 restore(File) ->
     ?CALL_WORKER({restore, File}).
 
@@ -67,6 +70,7 @@ restore(File) ->
 %% @doc
 %% Get a value from the DB.
 %%-------------------------------------------------------------------
+-spec get(term()) -> term().
 get(Key) ->
     ?CALL_WORKER({get, Key}).
 
@@ -74,6 +78,7 @@ get(Key) ->
 %% @doc
 %% Store an object in the database.
 %%-------------------------------------------------------------------
+-spec set(list()) -> {ok, success}.
 set([Key, Value]) ->
     ?CALL_WORKER({set, {Key, Value}}).
 
@@ -81,5 +86,6 @@ set([Key, Value]) ->
 %% @doc
 %% Deletes object with given key from the database.
 %%-------------------------------------------------------------------
+-spec del(term()) -> {ok, success}.
 del(Key) ->
     ?CALL_WORKER({del, Key}).
