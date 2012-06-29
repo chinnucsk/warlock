@@ -7,6 +7,20 @@
 %%% @doc Records and macros for consensus app
 %%% @end
 %%%-------------------------------------------------------------------
+%% rop = Reconfiguration operation
+-record(rop, {
+          %% Type of operation determine what has to be done
+          type,
+
+          %% Has data about the request
+          data
+}).
+
+%% Types in consensus app
+-type ballot() :: {integer(), integer(), node()}.
+-type slot() :: integer().
+-type proposal() :: #rop{} | term().
+-type pvalue() :: {ballot(), slot(), proposal()}.
 
 %% Registered names of a consensus cluster actors
 -define(LEADER, consensus_leader).
@@ -35,11 +49,3 @@
 -define(MIN_LEASE, 10). % In milli seconds, 10ms
 
 
-%% dop = Reconfiguration operation
--record(rop, {
-          %% Type of operation determine what has to be done
-          type,
-
-          %% Has data about the request
-          data
-}).

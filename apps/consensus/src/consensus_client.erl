@@ -34,9 +34,9 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
-
 %% Send read request to the master replica
 %% Note: Here we are assuming Operation is uniquely identified
+-spec propose(#dop{}) -> ok.
 propose(#dop{type=read}=Operation) ->
     Msg = {request, Operation},
     % TODO: Make this configurable
@@ -51,6 +51,7 @@ propose(Operation) ->
 %% Only the ones with active leaders will succeed, rest are ignored
 %% Paxos will handle multiple active leaders using ballots to make sure
 %% only one master exists
+-spec propose_rcfg(#rop{}) -> ok.
 propose_rcfg(Operation) ->
     Msg = {request, Operation},
     % TODO: Make this configurable
@@ -58,6 +59,7 @@ propose_rcfg(Operation) ->
 
 %% Execute the callback function in the operation
 %% Called by the replica
+-spec exec(#dop{} | #rop{}) -> ok.
 exec(#dop{type = Type,
           module = M,
           function = F,

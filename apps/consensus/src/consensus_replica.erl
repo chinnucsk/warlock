@@ -57,9 +57,11 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
+-spec start_link() -> {error, _} | {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
+-spec reset() -> ok.
 reset() ->
     gen_server:cast(?MODULE, reset).
 

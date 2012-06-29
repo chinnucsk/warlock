@@ -51,6 +51,7 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
+-spec start_link({node(), pvalue()}) -> {error, _} | {ok, pid()}.
 start_link({Leader, PValue}) ->
     gen_server:start_link(?MODULE, [{Leader, PValue}], [{timeout, ?TIMEOUT}]).
 

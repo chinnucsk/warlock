@@ -30,11 +30,12 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
-
+-spec sync(atom(), term()) -> term().
 sync(Target, Msg) ->
     TargetAdd = get_add(Target),
     gen_server:call(TargetAdd, Msg).
 
+-spec async(atom(), term()) -> ok.
 async(Target, Msg) when is_pid(Target) ->
     ?LDEBUG("MSG {PID, Msg}:: {~p, ~p}", [Target, Msg]),
     gen_server:cast(Target, Msg);

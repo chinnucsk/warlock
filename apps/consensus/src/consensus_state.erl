@@ -34,6 +34,8 @@
 %% --------------------------------------------------------------------
 -include("consensus.hrl").
 
+-type lease() :: {tuple(), integer()}.
+
 %% Initial status of the node
 -define(INITIAL_STATUS, valid).
 
@@ -80,26 +82,32 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
+-spec new() -> true.
 new() ->
     ets:new(?TABLE, [set, named_table, public]),
     % Initialize the node state and add itself to valid member list
     ets:insert(?TABLE, ?INITIAL_SYSTEM_STATE),
     set_node_status(?SELF_NODE, valid).
 
+-spec del() -> ok.
 del() ->
-    ets:delete(?TABLE).
+    ets:delete(?TABLE),
+    ok.
 
 % Get the entire system state
+-spec get_state() -> [{term(), term()}|list()].
 get_state() ->
     [{Key, get_state(Key)} || {Key, _Val} <- ?INITIAL_SYSTEM_STATE].
 
 % Set state for multiple entries
+-spec set_state([{term(), term()}|list()]) -> ok.
 set_state(List) ->
     lists:foreach(fun({Key, Val}) ->
                           set_state(Key, Val)
                   end, List).
 
 %% Get status of a specific node in the cluster
+-spec get_node_status(node()) -> undefined | term().
 get_node_status(Node) ->
     case lists:keyfind(Node, 1, get_state(c_status)) of
         {Node, Status} ->
@@ -109,11 +117,13 @@ get_node_status(Node) ->
     end.
 
 % Set node status for self
+-spec set_node_status(term()) -> true.
 set_node_status(Status) ->
     set_node_status(?SELF_NODE, Status).
 
 %% Add a new node or update a node's cluster status
 %% Makes sure master, valid, down, join are disjoint
+-spec set_node_status(node(), term()) -> true.
 set_node_status(Node, Status) when
   Status == master;
   Status == valid;
@@ -127,10 +137,12 @@ set_node_status(Node, Status) when
     end.
 
 %% Get all nodes
+-spec get_nodes() -> [node()|list()].
 get_nodes() ->
     [Node || {Node, _Status} <- get_state(c_status)].
 
 %% Get a list of nodes specified
+-spec get_nodes(atom()) -> [node()|list()].
 get_nodes(Type) when
   Type == valid;
   Type == master;
@@ -139,17 +151,21 @@ get_nodes(Type) when
     get_state(Type).
 
 %% Members of the clusters who can vote
+-spec get_members() -> [node()].
 get_members() ->
     get_nodes(valid).
 
 %% Get the master node
+-spec get_master() -> [node()].
 get_master() ->
     get_state(master).
 
 %% Get lease time
+-spec get_lease() -> term().
 get_lease() ->
     get_state(lease).
 
+-spec get_lease_validity() -> integer().
 %% Get the amount of time the lease is valid for, in milli seconds
 get_lease_validity() ->
     {LeaseStart, LeaseTime} = get_lease(),
@@ -158,6 +174,7 @@ get_lease_validity() ->
     erlang:trunc(timer:now_diff(Lease, erlang:now()) / 1000).
 
 %% Get master while making sure it still has the lease
+-spec get_valid_master() -> [node()] | undefined.
 get_valid_master() ->
     case get_lease_validity() > ?MIN_LEASE of
         true ->
@@ -167,27 +184,33 @@ get_valid_master() ->
     end.
 
 %% Set a new master node
+-spec set_master(node(), lease()) -> true.
 set_master(Node, Lease) ->
     set_state(master, [Node]),
     set_state(lease, Lease).
 
 %% Check if the current node is the master
+-spec is_master() -> boolean().
 is_master() ->
     get_master() =:= [get_state(node)].
 
 %% Check if status of the Node equals Status
+-spec is_status(term()) -> boolean().
 is_status(Status) ->
     Status =:= get_state(status).
 
 %% Get required member count of the cluster
+-spec get_cluster_size() -> integer().
 get_cluster_size() ->
     get_state(cluster_size).
 
 %% Update the size of the cluster
+-spec set_cluster_size(integer()) -> true.
 set_cluster_size(Size) ->
     set_state(cluster_size, Size).
 
 %% Increase/decrease cluster size atomically
+-spec set_cluster_delta(integer()) -> integer().
 set_cluster_delta(Delta) ->
     ets:update_counter(?TABLE, cluster_size, Delta).
 

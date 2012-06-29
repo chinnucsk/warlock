@@ -57,14 +57,17 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
+-spec start_link() -> {error, _} | {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% Reset the leaders local state
+-spec reset() -> ok.
 reset() ->
     gen_server:cast(?MODULE, reset).
 
 %% Increment the leader's view by changing the ballot and restarting election
+-spec incr_view() -> ok.
 incr_view() ->
     gen_server:cast(?MODULE, incr_view).
 

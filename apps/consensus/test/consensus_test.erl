@@ -71,7 +71,7 @@ simple_run() ->
                      args=[1, 2, 3, 4],
                      client=self()
                      },
-    consensus_client:propose(Operation1),
+    consensus:propose(Operation1),
 
     ?assertEqual(receive_cast(), 1),
 
@@ -81,7 +81,7 @@ simple_run() ->
                      args=[1, 2, 3, 4],
                      client=self()
                      },
-    consensus_client:propose(Operation2),
+    consensus:propose(Operation2),
 
     ?assertEqual(receive_cast(), 4).
 

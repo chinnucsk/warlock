@@ -40,10 +40,12 @@
 %% To be called only after this node's dataset and consensus app state
 %% is in sync with the cluster
 %% This increases the cluster size
+-spec join(node()) -> ok.
 join(SeedNode) ->
     add_member(empty, SeedNode, 1, undefined).
 
 %% Add a new member via replication
+-spec add_repl_member(node(), term()) -> ok.
 add_repl_member(SourceNode, Callback) ->
     add_member(repl, SourceNode, 1, Callback).
 
@@ -70,10 +72,12 @@ replace_member(SeedNode, TargetNode) ->
 %% Public functions, internal to the application
 %% -----------------------------------------------------------------
 %% Start a rcfg round to set the current node as master
+-spec set_master(ballot()) -> ok.
 set_master(Ballot) ->
     consensus_client:propose_rcfg(get_election_op(Ballot)).
 
 %% Callback functions to change system config
+-spec callback(#rop{}) -> ok.
 callback(#rop{type=election,
               data={Node, Lease, Ballot}}) ->
     consensus_state:set_master(Node, Lease),
@@ -132,12 +136,14 @@ callback(#rop{type=repl_join,
     end.
 
 %% Addition of new node to the cluster - update local state
+-spec cluster_add_node(node(), integer()) -> integer().
 cluster_add_node(Node, ClusterDelta) ->
     consensus_state:set_node_status(Node, valid),
     consensus_state:set_cluster_delta(ClusterDelta).
 
 %% Slots used for reconfiguration commands
 %% We use atoms here since integers are used for the regular state machine
+-spec get_slot(atom()) -> atom().
 get_slot(election) ->
     a;
 get_slot(join) ->
@@ -146,6 +152,7 @@ get_slot(repl_join) ->
     c.
 
 %% Check if given slot is a rcfg slot
+-spec is_slot(slot()) -> boolean().
 is_slot(Slot) when is_atom(Slot) ->
     true;
 is_slot(Slot) when is_integer(Slot) ->
