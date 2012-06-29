@@ -58,7 +58,6 @@ ping() ->
 %%-------------------------------------------------------------------
 -spec ping_service() -> pong | pang.
 ping_service() ->
-    % TODO: Check implementation
     consensus:ping().
 
 %%-------------------------------------------------------------------
@@ -101,8 +100,8 @@ repl(SeedNode) ->
     % Send a message to SourceNode to get ready
     {ok, _Pid} = rpc:call(SourceNode, server, ready_repl, [?SELF_NODE]),
     % Start receiver
-    server_receiver:start_link(SourceNode).
-
+    server_receiver:start_link(SourceNode),
+    ok.
 
 %% ------------------------------------------------------------------
 %% Exported Function Definitions to be only used within the app

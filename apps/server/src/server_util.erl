@@ -30,6 +30,7 @@
 %% @doc
 %% Get the type for the given command
 %%-------------------------------------------------------------------
+-spec get_type(atom()) -> read | write.
 get_type(Cmd) ->
     case Cmd of
         get ->
@@ -44,5 +45,6 @@ get_type(Cmd) ->
 %% @doc
 %% Get client id from the operation
 %%-------------------------------------------------------------------
+-spec get_clientid(#dop{}) -> pid().
 get_clientid(#dop{client=Client}) ->
     Client.

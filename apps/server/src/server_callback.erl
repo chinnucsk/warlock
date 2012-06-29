@@ -56,25 +56,32 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
+-spec start_link() -> {error, _} | {ok, atom()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 %% Callback function is of the format [Command, Data]
+-spec handle(list()) -> term().
 handle([Func, Data]) ->
     gen_server:call(?MODULE, {Func, Data}).
 
+-spec set_inactive() -> ok.
 set_inactive() ->
     gen_server:call(?MODULE, set_inactive).
 
+-spec trig_active() -> ok.
 trig_active() ->
     gen_server:call(?MODULE, trig_active).
 
+-spec is_active() -> boolean().
 is_active() ->
     gen_server:call(?MODULE, is_active).
 
+-spec add_subscriber(node()) -> ok.
 add_subscriber(Node) ->
     gen_server:call(?MODULE, {add_subscriber, Node}).
 
+-spec remove_subscriber(node()) -> ok.
 remove_subscriber(Node) ->
     gen_server:call(?MODULE, {remove_subscriber, Node}).
 

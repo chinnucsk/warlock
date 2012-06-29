@@ -34,6 +34,7 @@
 %% @doc
 %% Join an existing cluster
 %%-------------------------------------------------------------------
+-spec join([string()]) -> ok | {error, not_reachable}.
 join([NodeStr]) ->
     Node = str_to_node(NodeStr),
     %% Connect to the node
@@ -48,6 +49,7 @@ join([NodeStr]) ->
 %% @doc
 %% Replicate from some (non-master) node in the cluster
 %%-------------------------------------------------------------------
+-spec repl([string()]) -> ok | {error, not_reachable}.
 repl([NodeStr]) ->
     Node = str_to_node(NodeStr),
     %% Connect to the node

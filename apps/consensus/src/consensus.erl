@@ -17,7 +17,8 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([propose/1,
+-export([ping/0,
+         propose/1,
          rcfg_join/1, add_repl_member/2,
          get_sync_member/0]).
 
@@ -31,6 +32,15 @@
 %% ------------------------------------------------------------------
 %% Public functions
 %% ------------------------------------------------------------------
+-spec ping() -> pong | pang.
+ping() ->
+    case consensus_state:get_node_status(?SELF_NODE) of
+        valid ->
+            pong;
+        _ ->
+            pang
+    end.
+
 -spec propose(#dop{}) -> ok.
 propose(Operation) ->
     consensus_client:propose(Operation).

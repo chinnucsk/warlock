@@ -69,7 +69,7 @@ simple_run() ->
 
     % Set server_callback back to active and see if decisions are processed
 
-    server_callback:set_active(),
+    server_callback:trig_active(),
     timer:sleep(100),
 
     case server_callback:is_active() of
