@@ -12,7 +12,7 @@
 %%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(db_ets_backend).
+-module(db_redis_backend).
 -behavior(db_backend).
 
 -include("db.hrl").
@@ -28,53 +28,38 @@
 %% ------------------------------------------------------------------
 -spec start() -> {ok, #client{}}.
 start() ->
-    Name = conf_helper:get(name, ?MODULE),
     Options = conf_helper:get(options, ?MODULE),
-    {ok, #client{inst=ets:new(Name, Options)}}.
+    {ok, C} = eredis:start_link(Options),
+    {ok, #client{inst=C}}.
 
--spec start(list()) -> {ok, #client{}}.
-start([Name | Options]) ->
-    {ok, #client{inst=ets:new(Name, Options)}}.
+-spec start(term()) -> {ok, #client{}}.
+start(Options) ->
+    {ok, C} = eredis:start_link(Options),
+    {ok, #client{inst=C}}.
 
 -spec reset(Client::#client{}) -> {ok, #client{}}.
-reset(#client{inst=Table}) ->
-    ets:delete(Table),
-    ?MODULE:start().
+reset(#client{inst=C}) ->
+    eredis:q(C, ["FLUSHDB"]).
 
+%% FIXME: To be implemented
 -spec backup(File::string(), Client::#client{}) -> ok | {error, _}.
-backup(File, #client{inst=Table}) ->
-    ets:tab2file(Table, File).
+backup(_File, #client{inst=_C}) ->
+    ok.
 
+%% FIXME: To be implemented
 -spec restore(File::string(), Client::#client{}) -> {ok, success}.
-restore(File, #client{inst=Table}) ->
-    ets:delete(Table),
-    ets:file2tab(File).
+restore(_File, #client{inst=_C}) ->
+    ok.
 
 -spec ping(Client::#client{}) -> ping | pang.
-ping(#client{inst=Table}) ->
-    case ets:info(Table) of
-        % Table not available
-        undefined ->
-            pang;
+ping(#client{inst=C}) ->
+    case eredis:q(C, ["PING"]) of
+        "PONG" ->
+            pong;
         _ ->
-            pong
+            pang
     end.
 
 -spec x(Cmd::term(), Client::#client{}) -> term().
-x([get, Key], #client{inst=Table}) ->
-    case ets:lookup(Table, Key) of
-        [] ->
-            {ok, not_found};
-        [{Key, Value}] ->
-            {ok, Value};
-        [_H | _T] ->
-            {error, multiple_values}
-    end;
-x([set, Key, Value], #client{inst=Table}) ->
-    true = ets:insert(Table, {Key, Value}),
-    {ok, success};
-x([del, Key], #client{inst=Table}) ->
-    true = ets:delete(Table, Key),
-    {ok, success};
-x(_, _) ->
-    {error, unknown_command}.
+x(Cmd, #client{inst=C}) ->
+    eredis:q(C, Cmd).

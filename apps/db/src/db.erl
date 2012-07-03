@@ -19,7 +19,7 @@
 %% Public interface
 %% -----------------------------------------------------------------
 -export([ping/0, reset/0, backup/1, restore/1,
-         get/1, set/1, del/1]).
+         x/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -68,24 +68,8 @@ restore(File) ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% Get a value from the DB.
+%% eXecute command on database
 %%-------------------------------------------------------------------
--spec get(term()) -> term().
-get(Key) ->
-    ?CALL_WORKER({get, Key}).
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Store an object in the database.
-%%-------------------------------------------------------------------
--spec set(list()) -> {ok, success}.
-set([Key, Value]) ->
-    ?CALL_WORKER({set, {Key, Value}}).
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Deletes object with given key from the database.
-%%-------------------------------------------------------------------
--spec del(term()) -> {ok, success}.
-del(Key) ->
-    ?CALL_WORKER({del, Key}).
+-spec x(term()) -> term().
+x(Cmd) ->
+    ?CALL_WORKER({x, Cmd}).

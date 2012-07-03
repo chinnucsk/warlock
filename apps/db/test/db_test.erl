@@ -1,6 +1,7 @@
 -module(db_test).
 
 -include_lib("eunit/include/eunit.hrl").
+-include_lib("util/include/common.hrl").
 
 %%-------------------------------------------------------------------
 %% setup code
@@ -43,41 +44,49 @@ db_test_() ->
      }}.
 
 simple_run() ->
-    ?assertEqual(pong, db:ping()),
+    Backend = conf_helper:get(backend, ?APP),
 
-    Keys = keys(),
-    Vals = vals(),
+    case Backend of
+        db_ets_backend ->
+            ?assertEqual(pong, db:ping()),
 
-    % General test
-    insert_mult(Keys, Vals),
+            Keys = keys(),
+            Vals = vals(),
 
-    DBVals = get_mult(Keys),
-    ?assertEqual(Vals, DBVals),
+            % General test
+            insert_mult(Keys, Vals),
 
-    delete_mult(Keys),
-    DDBVals = get_mult(Keys),
-    ?assertNotEqual(Vals, DDBVals),
+            DBVals = get_mult(Keys),
+            ?assertEqual(Vals, DBVals),
 
-    % Reset test
-    insert_mult(Keys, Vals),
-    db:reset(),
-    ResetDBVals = get_mult(Keys),
-    ?assertNotEqual(Vals, ResetDBVals),
+            delete_mult(Keys),
+            DDBVals = get_mult(Keys),
+            ?assertNotEqual(Vals, DDBVals),
 
-    % Backup test
-    insert_mult(Keys, Vals),
-    File = "./tmp-db-test",
-    db:backup(File),
-    {Result, _ResultData} = file:read_file_info(File),
-    ?assertEqual(ok, Result),
+            % Reset test
+            insert_mult(Keys, Vals),
+            db:reset(),
+            ResetDBVals = get_mult(Keys),
+            ?assertNotEqual(Vals, ResetDBVals),
 
-    % Clean table and restore from file
-    db:reset(),
-    db:restore(File),
-    RestoreDBVals = get_mult(Keys),
-    ?assertEqual(Vals, RestoreDBVals),
+            % Backup test
+            insert_mult(Keys, Vals),
+            File = "./tmp-db-test",
+            db:backup(File),
+            {Result, _ResultData} = file:read_file_info(File),
+            ?assertEqual(ok, Result),
 
-    file:delete(File).
+            % Clean table and restore from file
+            db:reset(),
+            db:restore(File),
+            RestoreDBVals = get_mult(Keys),
+            ?assertEqual(Vals, RestoreDBVals),
+
+            file:delete(File);
+        _ ->
+            %% TODO: Write tests for redis backend
+            ok
+    end.
 
 %%-------------------------------------------------------------------
 %% internal functions
@@ -91,7 +100,7 @@ vals() ->
 insert_mult([], []) ->
     ok;
 insert_mult([Key | KTail], [Val | VTail]) ->
-    db:set([Key, Val]),
+    db:x([set, Key, Val]),
     insert_mult(KTail, VTail).
 
 
@@ -101,11 +110,11 @@ get_mult(Keys) ->
 get_mult([], Acc) ->
     Acc;
 get_mult([Key | Tail], Acc) ->
-    {ok, Val} = db:get(Key),
+    {ok, Val} = db:x([get, Key]),
     get_mult(Tail, [Val | Acc]).
 
 delete_mult([]) ->
     ok;
 delete_mult([Key | Tail]) ->
-    db:del(Key),
+    db:x([del, Key]),
     delete_mult(Tail).

@@ -41,7 +41,13 @@ init([]) ->
     % Start the backend, to maintain ownership
     % TODO: Replace with table manager
     Backend = conf_helper:get(backend, ?APP),
-    {ok, _Client} = Backend:start(),
+    {ok, Client} = Backend:start(),
 
-    Children = [?CHILD(db_worker, worker)],
+    Children = [{db_worker,
+                 {db_worker, start_link, [Client]},
+                 permanent,
+                 5000,
+                 worker,
+                 [db_worker]}
+               ],
     {ok, { {one_for_one, 5, 10}, Children}}.

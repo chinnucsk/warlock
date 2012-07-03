@@ -60,14 +60,16 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
-%% Callback function is of the format [Command, Data]
--spec handle(list()) -> term().
-handle([Func, Data]) ->
-    case server_util:get_type(Func) of
+%% Main callback
+%% Read commands are sent to db directly (better read performance)
+%% Backend needs to handle reads parallely when taking backups
+-spec handle(term()) -> term().
+handle(Cmd) ->
+    case server_util:get_type(Cmd) of
         read ->
-            db:Func(Data);
+            db:x(Cmd);
         write ->
-            gen_server:call(?MODULE, {Func, Data})
+            gen_server:call(?MODULE, {x, Cmd})
     end.
 
 -spec set_inactive() -> ok.
@@ -104,33 +106,11 @@ init([]) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
-handle_call({get, Key}, _From,
-            #state{active=Active}=State) ->
-    case Active of
-        true ->
-            Reply = db:get(Key),
-            {reply, Reply, State};
-        false ->
-            % TODO: Should this be an error instead?
-            Reply = {ok, inactive},
-            {reply, Reply, State}
-    end;
-handle_call({set, [Key, Value]}=Msg, _From,
+handle_call({x, Cmd}=Msg, _From,
             #state{active=Active, queue=Queue}=State) ->
     case Active of
         true ->
-            Reply = db:set([Key, Value]),
-            {reply, Reply, State};
-        false ->
-            NewQueue = queue:in(Msg, Queue),
-            Reply = {ok, queued},
-            {reply, Reply, State#state{queue=NewQueue}}
-    end;
-handle_call({del, Key}=Msg, _From,
-            #state{active=Active, queue=Queue}=State) ->
-    case Active of
-        true ->
-            Reply = db:del(Key),
+            Reply = db:x(Cmd),
             {reply, Reply, State};
         false ->
             NewQueue = queue:in(Msg, Queue),
@@ -176,10 +156,10 @@ handle_cast(process_queue,
             send_subscriber(Subscriber, queue_processed),
             gen_server:cast(?MODULE, process_queue),
             {noreply, State#state{queue=NewQueue, subscriber=[]}};
-        {{value, {Func, Data}}, NewQueue} ->
+        {{value, {x, Cmd}}, NewQueue} ->
             % Process queue. Exec on local, on subscriber and continue
-            db:Func(Data),
-            send_subscriber(Subscriber, {Func, Data}),
+            db:x(Cmd),
+            send_subscriber(Subscriber, {x, Cmd}),
             gen_server:cast(?MODULE, process_queue),
             {noreply, State#state{queue=NewQueue}};
         {empty, Queue} ->
@@ -215,7 +195,6 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Send the decision as a message to the subscriber
 send_subscriber(Subscriber, Msg) when is_atom(Subscriber) ->
-    % TODO: Use cast?
     gen_server:call({?MODULE, Subscriber}, Msg);
 send_subscriber(_Subscriber, _Msg) ->
     ok.

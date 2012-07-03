@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0, ping/0]).
+-export([start_link/1, ping/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -47,9 +47,9 @@
 %% ------------------------------------------------------------------
 %% API Function Definitions
 %% ------------------------------------------------------------------
--spec start_link() -> {error, _} | {ok, pid()}.
-start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, no_arg, []).
+-spec start_link(Client::term()) -> {error, _} | {ok, pid()}.
+start_link(Client) ->
+    gen_server:start_link({local, ?MODULE}, ?MODULE, Client, []).
 
 -spec ping() -> pong | pang.
 ping() ->
@@ -58,36 +58,21 @@ ping() ->
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
-init(no_arg) ->
+init(Client) ->
     Backend = conf_helper:get(backend, ?APP),
-    Name = conf_helper:get(name, Backend),
-    Client = #client{inst=Name},
     {ok, #state{module=Backend, client=Client}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
-%% Check if the client is up
-%%TODO: is the name "Client" appropriate here, or server
+%% eXecute command on db
+handle_call({x, Cmd}, _From,
+            #state{module=Backend, client=Client} = State) ->
+    Reply = Backend:x(Cmd, Client),
+    {reply, Reply, State};
 handle_call(ping, _From,
             #state{module=Backend, client=Client} = State) ->
     Reply = Backend:ping(Client),
-    {reply, Reply, State};
-%% GET object
-handle_call({get, Key}, _From,
-            #state{module=Backend, client=Client} = State) ->
-    ?LDEBUG("DB GET state:: ~p~n", [Client]),
-    Reply = Backend:get(Key, Client),
-    {reply, Reply, State};
-%% SET value for given key
-handle_call({set, {Key, Value}}, _From,
-            #state{module=Backend, client=Client} = State) ->
-    Reply = Backend:set(Key, Value, Client),
-    {reply, Reply, State};
-%% DELETE object
-handle_call({del, Key}, _From,
-            #state{module=Backend, client=Client} = State) ->
-    Reply = Backend:del(Key, Client),
     {reply, Reply, State};
 %% RESET db
 handle_call(reset, _From,

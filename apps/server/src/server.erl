@@ -28,7 +28,7 @@
 %% Public interface
 %% -----------------------------------------------------------------
 -export([ping/0, ping_service/0, ping_backend/0,
-         get/1, set/2, del/1,
+         x/1,
          receive_complete/1, ready_repl/1,
          repl/1]).
 
@@ -70,24 +70,11 @@ ping_backend() ->
 
 %%-------------------------------------------------------------------
 %% @doc
-%% Get a value from the DB.
+%% eXecute a command on the database
 %%-------------------------------------------------------------------
-get(Key) ->
-    spawncall_worker(get, Key).
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Store an object in the database.
-%%-------------------------------------------------------------------
-set(Key, Value) ->
-    spawncall_worker(set, [Key, Value]).
-
-%%-------------------------------------------------------------------
-%% @doc
-%% Deletes object with given key from the database.
-%%-------------------------------------------------------------------
-del(Key) ->
-    spawncall_worker(del, Key).
+-spec x(term()) -> term().
+x(Cmd) ->
+    spawncall_worker(Cmd).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -138,9 +125,9 @@ ready_repl(FromNode) ->
 %% ------------------------------------------------------------------
 
 %% TODO: Check if there is a usecase where we need cast worker
-spawncall_worker(Cmd, Data) ->
+spawncall_worker(Cmd) ->
     {ok, Worker} = server_command_worker:start_link(),
-    try gen_server:call(Worker, {request, {Cmd, Data}})
+    try gen_server:call(Worker, {request, Cmd})
     catch
         exit:{timeout, _} -> {error, timeout}
     end.

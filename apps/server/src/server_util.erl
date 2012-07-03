@@ -30,14 +30,23 @@
 %% @doc
 %% Get the type for the given command
 %%-------------------------------------------------------------------
+%% TODO: Better implementation based on backend
 -spec get_type(atom()) -> read | write.
-get_type(Cmd) ->
-    case Cmd of
+get_type(Cmd) when is_list(Cmd) ->
+    case hd(Cmd) of
+        %% ETS
         get ->
             read;
         set ->
             write;
         del ->
+            write;
+        %% REDIS
+        "GET" ->
+            read;
+        "SET" ->
+            write;
+        "DEL" ->
             write
     end.
 

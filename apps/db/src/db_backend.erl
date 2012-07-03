@@ -24,8 +24,6 @@ behaviour_info(callbacks) ->
      {reset, 1},                % Client
      {backup, 2},               % File, Client
      {restore, 2},              % File, Client
-     {get, 2},                  % {Key, Client}
-     {set, 3},                  % {Key, Value, Client}
-     {del, 2}];                 % {Key, Client}
+     {x, 2}];                   % {Cmd, Client}
 behaviour_info(_Other) ->
     undefined.

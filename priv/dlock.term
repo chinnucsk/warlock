@@ -14,8 +14,21 @@
                    %% Options for the ets table
                    %% Current we used a public table since the supervisor
                    %% owns it. Can be replaced once we have a table manager
-                   {options, [named_table, public]}
+                   {options, [named_table, public, {read_concurrency, true}]}
                   ]
+ },
+
+ %% Dlock backend config :: REDIS
+ {db_redis_backend, [
+                     %% Options for the redis db
+                     {options, [
+                                {host, "127.0.0.1"},
+                                {port, 6379},
+                                {database, 0},
+                                {password, ""},
+                                {reconnect_sleep, 100}
+                               ]}
+                    ]
  },
 
  {replication, [

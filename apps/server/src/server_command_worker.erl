@@ -15,7 +15,6 @@
 %%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
-%% TODO: Add retry logic? (in case of timeout)
 -module(server_command_worker).
 -behaviour(gen_server).
 
@@ -73,10 +72,8 @@ init([]) ->
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
 %% Request is sent by server
-%% TODO: Responsible for executing one command. Make sure it does not
-%% accept other commands
-handle_call({request, {Cmd, Data}}, From, _State) ->
-    Operation = get_operation({Cmd, Data, ?CID}),
+handle_call({request, Cmd}, From, _State) ->
+    Operation = get_operation(Cmd, ?CID),
     consensus:propose(Operation),
     {noreply, #state{operation=Operation, caller=From}, ?TIMEOUT};
 handle_call(_Request, _From, State) ->
@@ -118,11 +115,11 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-get_operation({Cmd, Data, ClientId}) ->
+get_operation(Cmd, ClientId) ->
     #dop{
          type = server_util:get_type(Cmd),
          module = server_callback,
          function = handle,
-         args = [Cmd, Data],
+         args = Cmd,
          client = ClientId
          }.
