@@ -174,7 +174,6 @@ handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
     NewBallot = case consensus_util:ballot_greater(ABallot, CurrBallot) of
         true ->
             NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
-            ?LDEBUG("Increment ballot to :: ~p", [NextBallot]),
             erlang:send_after(?BACKOFF_TIME, ?SELF, spawn_scout),
             NextBallot;
         false ->
@@ -190,6 +189,7 @@ handle_cast(scout_timeout, #state{ballot_num = Ballot} = State) ->
 %% Commander has timed out after waiting for replies
 handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     {_OldBallot, Slot, Proposal} = PValue,
+    ?LINFO("LEA::timeout::~p", Proposal),
     NewPValue = {Ballot, Slot, Proposal},
     check_master_start_commander(NewPValue),
     {noreply, State};

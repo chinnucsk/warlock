@@ -78,7 +78,7 @@ init([]) ->
 handle_call({request, {Cmd, Data}}, From, _State) ->
     Operation = get_operation({Cmd, Data, ?CID}),
     consensus:propose(Operation),
-    {noreply, #state{operation=Operation, caller=From}};
+    {noreply, #state{operation=Operation, caller=From}, ?TIMEOUT};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -97,6 +97,9 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
+handle_info(timeout,#state{operation=Operation}=State) ->
+    ?LINFO("SER::timeout::~p", Operation#dop.args),
+    {stop,normal,State};
 handle_info(_Info, State) ->
     {noreply, State}.
 

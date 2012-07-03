@@ -63,7 +63,12 @@ start_link() ->
 %% Callback function is of the format [Command, Data]
 -spec handle(list()) -> term().
 handle([Func, Data]) ->
-    gen_server:call(?MODULE, {Func, Data}).
+    case server_util:get_type(Func) of
+        read ->
+            db:Func(Data);
+        write ->
+            gen_server:call(?MODULE, {Func, Data})
+    end.
 
 -spec set_inactive() -> ok.
 set_inactive() ->
@@ -84,10 +89,6 @@ add_subscriber(Node) ->
 -spec remove_subscriber(node()) -> ok.
 remove_subscriber(Node) ->
     gen_server:call(?MODULE, {remove_subscriber, Node}).
-
-%% This is the first connection from the client
-%% Send data about the cluster to the client
-% TODO: Implement this
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions

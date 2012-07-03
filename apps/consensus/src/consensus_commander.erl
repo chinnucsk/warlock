@@ -46,7 +46,7 @@
 
 -define(SELF, self()).
 %% Time allowed for the scout to survive being idle
--define(TIMEOUT, 5000).
+-define(TIMEOUT, 1000).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
