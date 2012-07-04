@@ -166,7 +166,7 @@ get_lease() ->
     get_state(lease).
 
 -spec get_lease_validity() -> integer().
-%% Get the amount of time the lease is valid for, in milli seconds
+%% Get the amount of time the lease is valid for, from now, in milli seconds
 get_lease_validity() ->
     {LeaseStart, LeaseTime} = get_lease(),
     %% LeaseTime is in ms. Covert it to micro

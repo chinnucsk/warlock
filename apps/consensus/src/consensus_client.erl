@@ -38,9 +38,15 @@
 %% Note: Here we are assuming Operation is uniquely identified
 -spec propose(#dop{}) -> ok.
 propose(#dop{type=read}=Operation) ->
-    Msg = {request, Operation},
-    % TODO: Make this configurable
-    ?ASYNC_MSG(master_replica, Msg);
+    %% Check if lease is valid, if yes, execute on local replica
+    %% TODO: Add option to allow master only reads
+    LeaseTime = consensus_state:get_lease_validity(),
+    case (LeaseTime > ?MIN_LEASE) of
+        true ->
+            ?MODULE:exec(Operation);
+        false ->
+            {error, out_of_sync}
+    end;
 %% Send other requests to the local replica
 propose(Operation) ->
     Msg = {request, Operation},
@@ -67,16 +73,16 @@ exec(#dop{type = Type,
           client = Client}) ->
     ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
 
-    case {consensus_state:is_master(), Type} of
-        % Regular requests
-        {true, read} ->                         % Read req on master
+    case Type of
+        read ->
             ?ASYNC_MSG(Client, exec(M, F, A));
-        {true, write} ->                        % Write req on master
-            ?ASYNC_MSG(Client, exec(M, F, A));
-        {false, write} ->                       % Write req on member
-            exec(M, F, A);
-        {false, read} ->                        % Read req on member
-            ok
+        write ->
+            case consensus_state:is_master() of
+                true ->
+                    ?ASYNC_MSG(Client, exec(M, F, A));
+                false ->
+                    exec(M, F, A)
+            end
     end;
 exec(#rop{}=ROp) ->
     consensus_rcfg:callback(ROp).
