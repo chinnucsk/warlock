@@ -70,27 +70,27 @@ exec(#dop{type = Type,
           module = M,
           function = F,
           args = A,
-          client = Client}) ->
+          client = {Client, Ref}}) ->
     ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
+
+    Result = M:F(Type, A),
+    ?LDEBUG("RESULT ==>> ~p", [Result]),
 
     case Type of
         read ->
-            ?ASYNC_MSG(Client, exec(M, F, A));
+            ?ASYNC_MSG(Client, {response, Ref, Result});
         write ->
             case consensus_state:is_master() of
                 true ->
-                    ?ASYNC_MSG(Client, exec(M, F, A));
+                    ?ASYNC_MSG(Client, {response, Ref, Result});
                 false ->
-                    exec(M, F, A)
+                    ok
             end
-    end;
+    end,
+    Result;
 exec(#rop{}=ROp) ->
     consensus_rcfg:callback(ROp).
 
 %% ------------------------------------------------------------------
 %% Internal function
 %% ------------------------------------------------------------------
-exec(M, F, A) ->
-    Result = M:F(A),
-    ?LDEBUG("RESULT ==>> ~p", [Result]),
-    {response, Result}.
