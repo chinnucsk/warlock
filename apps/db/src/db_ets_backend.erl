@@ -73,6 +73,13 @@ x([get, Key], #client{inst=Table}) ->
 x([set, Key, Value], #client{inst=Table}) ->
     true = ets:insert(Table, {Key, Value}),
     {ok, success};
+x([setnx, Key, Value], Client) ->
+    case x([get, Key], Client) of
+        {ok, not_found} ->
+            x([set, Key, Value], Client);
+        {ok, _Value} ->
+            {ok, not_set}
+    end;
 x([del, Key], #client{inst=Table}) ->
     true = ets:delete(Table, Key),
     {ok, success};

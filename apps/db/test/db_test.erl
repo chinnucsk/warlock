@@ -63,6 +63,12 @@ simple_run() ->
             DDBVals = get_mult(Keys),
             ?assertNotEqual(Vals, DDBVals),
 
+            % SetNX test
+            ResultSetnx1 = db:x([setnx, a, b]),
+            ?assertEqual({ok, success}, ResultSetnx1),
+            ResultSetnx2 = db:x([setnx, a, b]),
+            ?assertEqual({ok, not_set}, ResultSetnx2),
+
             % Reset test
             insert_mult(Keys, Vals),
             db:reset(),
