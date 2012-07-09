@@ -41,7 +41,7 @@
             pvalue,
 
             % Number of acceptors that has agreed for this ballot
-            vote_count = 0
+            votes = []
 }).
 
 -define(SELF, self()).
@@ -87,21 +87,20 @@ handle_call(_Request, _From, State) ->
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
 %% phase 2 b message from some acceptor
-% TODO: We currently do not check the acceptor identity. Add check to make sure
-% votes are only counted for unique acceptors
-handle_cast({p2b, {_Acceptor, ABallot}},
+handle_cast({p2b, {Acceptor, ABallot}},
             #state{pvalue = {CurrBallot, Slot, Proposal},
-                   vote_count = VoteCount,
+                   votes = Votes,
                    leader = Leader} = State) ->
-    ?LDEBUG("COM ~p::Received message ~p", [self(), {p2b, {_Acceptor, ABallot}}]),
+    ?LDEBUG("COM ~p::Received message ~p", [self(), {p2b, {Acceptor, ABallot}}]),
+    NewVotes = [Acceptor|Votes],
     case consensus_util:ballot_same(ABallot, CurrBallot) of
         true ->
-            case consensus_util:is_majority(VoteCount + 1) of
+            case consensus_util:is_majority(length(NewVotes)) of
                 true ->
                     exec_decision(Slot, Proposal),
                     {stop, normal, State};
                 false ->
-                    NewState = State#state{vote_count = VoteCount + 1},
+                    NewState = State#state{votes = NewVotes},
                     {noreply, NewState, ?TIMEOUT}
             end;
         false ->

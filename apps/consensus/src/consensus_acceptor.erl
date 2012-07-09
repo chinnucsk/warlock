@@ -104,8 +104,6 @@ handle_cast({p1a, {Leader, LBallot}}, #state{hash_table=HT,
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
 %% phase 2 a message from some leader
-%% TODO: Do we need to store ballot_num for each <s, p> since we ignore
-%% it when using it in the leader
 handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
             #state{hash_table=HT,
                    ballot_num = CurrBallot,

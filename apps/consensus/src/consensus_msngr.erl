@@ -12,7 +12,6 @@
 %%% @since : 05 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
-%% TODO: Write specs
 %% TODO: Get the registered names of services from a central config file
 -module(consensus_msngr).
 

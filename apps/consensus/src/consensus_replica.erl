@@ -135,8 +135,6 @@ handle_cast({decision, {Slot, Proposal}},
     % Add the decision to the set of decisions
 
     % A safety check to see if this is a duplicate decision
-    % TODO: If someone is re-proposing a request that is in decision, should we
-    % reply to them?
     case HT:valget(Proposal, Decisions) of
         not_found ->
             % Save the decision
