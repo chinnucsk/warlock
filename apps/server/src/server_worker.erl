@@ -61,7 +61,7 @@ start() ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
-    {ok, #state{requests=ets_ht:new([ets_ht])}}.
+    {ok, #state{requests=ets_ht:new()}}.
 
 request(Type, Cmd) ->
     gen_server:call(?MODULE, {request, {Type, Cmd}}).
@@ -71,6 +71,7 @@ request(Type, Cmd) ->
 %% ------------------------------------------------------------------
 %% Request is sent by server
 handle_call({request, {Type, Cmd}}, From, #state{requests=Requests}=State) ->
+    % TODO: Better timer implementation for more performance
     TRef = erlang:start_timer(?TIMEOUT, self(), ?MODULE),
     ets_ht:set(TRef, From, Requests),
     Operation = get_operation(Type, Cmd, {self(), TRef}),
