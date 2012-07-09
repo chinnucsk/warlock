@@ -4,58 +4,22 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc A simple hash table using ETS
-%%% @end
-%%%
-%%% @since : 05 June 2012
+%%% @doc A simple hash table behaviour
 %%% @end
 %%%-------------------------------------------------------------------
 -module(util_ht).
 
-%% ------------------------------------------------------------------
-%% Function Exports
-%% ------------------------------------------------------------------
--export([new/0, del/1, to_list/1, reset/1,
-         set/3, get/2, del/2]).
+-export([behaviour_info/1]).
 
--type tid() :: integer().
--type table() :: atom() | tid().
-
-%% ------------------------------------------------------------------
-%% Function Definitions
-%% ------------------------------------------------------------------
--spec new() -> Table :: table().
-new() ->
-    ets:new(ht, []).
-
--spec del(Table::table()) -> true.
-del(Table) ->
-    ets:delete(Table).
-
--spec set(Key::term(), Val::term(), Table::table()) -> ok.
-set(Key, Value, Table) ->
-    ets:insert(Table, {Key, Value}),
-    ok.
-
--spec get(Key::term(), Table::table()) -> Val::term() | error.
-get(Key, Table) ->
-    case ets:lookup(Table, Key) of
-        [] ->
-            not_found;
-        [{Key, Value}] ->
-            Value
-    end.
-
--spec del(Key::term(), Table::table()) -> ok.
-del(Key, Table) ->
-    ets:delete(Table, Key),
-    ok.
-
--spec to_list(Table::table()) -> [{term(), term()}].
-to_list(Table) ->
-    ets:tab2list(Table).
-
-% TODO: Check if dropping the table and creating a new table it is faster
--spec reset(Table::table()) -> true.
-reset(Table) ->
-    ets:delete_all_objects(Table).
+-spec behaviour_info(atom()) -> 'undefined' | [{atom(), arity()}].
+behaviour_info(callbacks) ->
+    [{new, 0},              % Create new HT
+     {new, 1},              % Create new HT with options
+     {del, 1},              % Delete entire HT
+     {reset, 1},            % Delete all the content of HT
+     {to_list, 1},          % Return all data of HT as list
+     {get, 2},              % Get value of specific key
+     {set, 3},              % Set {Key, Val}=Obj in HT
+     {del, 2}];             % Del Obj with Key
+behaviour_info(_Other) ->
+    undefined.

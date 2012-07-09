@@ -41,5 +41,19 @@
                 %% Location where db dump is stored for replication
                 {file, "/tmp/data-dump.ddb"}
                ]
+ },
+
+ %% Internal hash table implementation to be used
+ %% Currently available - ets based =ets_ht, dict based = dict_ht
+ %% Similarly for bidirectional hash tables = bht
+ {int_hash_table, [
+                   %% Implementation to be used
+                   {ht, ets_ht},
+                   {bht, ets_bht},
+
+                   %% Options
+                   {ht_options, [ets_ht]},
+                   {bht_options, [ets_bht]}
+                  ]
  }
 ].

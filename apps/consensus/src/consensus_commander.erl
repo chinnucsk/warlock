@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/1]).
+-export([start/1, start_link/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -54,6 +54,10 @@
 -spec start_link({node(), pvalue()}) -> {error, _} | {ok, pid()}.
 start_link({Leader, PValue}) ->
     gen_server:start_link(?MODULE, [{Leader, PValue}], [{timeout, ?TIMEOUT}]).
+
+-spec start({node(), pvalue()}) -> {error, _} | {ok, pid()}.
+start({Leader, PValue}) ->
+    gen_server:start(?MODULE, [{Leader, PValue}], [{timeout, ?TIMEOUT}]).
 
 
 %% ------------------------------------------------------------------

@@ -42,7 +42,13 @@
 %% http://en.wikipedia.org/wiki/Additive_increase/multiplicative_decrease
 -define(BACKOFF_TIME, 100).  % In milli seconds
 
+-define(COMMANDER_ON, 1).
+-define(COMMANDER_OFF, 0).
+
 -record(state, {
+            % Type of hash_table used
+            hash_table,
+
             % Monotonically increasing unique ballot number
             ballot_num = ?FIRST_BALLOT,
 
@@ -51,7 +57,8 @@
 
             % A map of slot numbers to proposals in the form of a set
             % At any time, there is at most one entry per slot number in the set
-            proposals = util_ht:new()
+            % Third parameter tracks if a commander has been spawned for it
+            proposals
 }).
 
 %% ------------------------------------------------------------------
@@ -80,13 +87,21 @@ incr_view() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
+    HT = conf_helper:get(ht, int_hash_table),
+    Options = conf_helper:get(ht_options, int_hash_table),
+
     % Start scout
     consensus_scout_sup:create({?SELF, ?FIRST_BALLOT}),
-    {ok, #state{}}.
+    {ok, #state{hash_table=HT,
+                proposals=HT:new(Options)}}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
+%% Returns proplist of state
+handle_call(debug, _From, State) ->
+    Reply = lists:zip(record_info(fields, state), tl(tuple_to_list(State))),
+    {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -96,26 +111,27 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 %% propose request from replica
 handle_cast({propose, {Slot, Proposal}},
-            #state{proposals = Proposals,
+            #state{hash_table=HT,
+                   proposals = Proposals,
                    active = Active,
                    ballot_num = Ballot} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {propose, {Slot, Proposal}}]),
     % Add the proposal if we do not have a command for the proposed spot
-    case util_ht:get(Slot, Proposals) of
+    Proposals1 = case HT:get(Slot, Proposals) of
         not_found ->
-            util_ht:set(Slot, Proposal, Proposals),
             case Active of
                 true ->
                     PValue = {Ballot, Slot, Proposal},
-                    consensus_commander_sup:create({?SELF, PValue});
+                    spawn_commander(PValue),
+                    HT:set(Slot, {Proposal, ?COMMANDER_ON}, Proposals);
                 false ->
-                    ok
+                    HT:set(Slot, {Proposal, ?COMMANDER_OFF}, Proposals)
             end;
         _Proposal ->
-            ok
+            Proposals
     end,
-    {noreply, State};
+    {noreply, State#state{proposals=Proposals1}};
 %% propose request from replica, for reconfiguration
 handle_cast({propose_rcfg, {Slot, Proposal}},
             #state{active = Active,
@@ -135,25 +151,25 @@ handle_cast({propose_rcfg, {Slot, Proposal}},
 %% ballot number ballot num has been adopted by a majority of acceptors
 %% Note: The adopted ballot_num has to match current ballot_num!
 handle_cast({adopted, {CurrBallot, PValues}},
-            #state{proposals = Proposals,
+            #state{hash_table=HT, proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {adopted, {CurrBallot, PValues}}]),
 
     % Get all the proposals in PValues update our proposals with this data
     % PValues returned by Acceptor is of the format {Slot, {Ballot, Proposal}}
-    intersect(Proposals, PValues),
+    Proposals1 = intersect(HT, Proposals, PValues),
 
     % Now that the ballot is accepted, make self as the master
     % We pass Ballot around to make sure the ballot is valid when
     % we receive master_adopted
     consensus_rcfg:set_master(CurrBallot),
 
-    {noreply, State#state{active=true}};
+    {noreply, State#state{active=true, proposals=Proposals1}};
 %% master_adopted message sent by master_commander when everyone has accepted
 %% this leader as their master
 handle_cast({master_adopted, CurrBallot},
-            #state{proposals = Proposals,
+            #state{hash_table=HT, proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {master_adopted, CurrBallot}]),
@@ -162,8 +178,8 @@ handle_cast({master_adopted, CurrBallot},
     erlang:send_after(?RENEW_LEASE_TIME, ?SELF, renew_master),
 
     % Spawn a commander for every proposal
-    spawn_commanders(CurrBallot, Proposals),
-    {noreply, State#state{active = true}};
+    Proposals1 = spawn_commanders(HT, CurrBallot, Proposals),
+    {noreply, State#state{active = true, proposals=Proposals1}};
 %% preempted message sent by either a scout or a commander, it means that some
 %% acceptor has adopted some other ballot
 handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
@@ -194,24 +210,24 @@ handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     check_master_start_commander(NewPValue),
     {noreply, State};
 %% Garbage collection: Remove decided slots from proposals
-handle_cast({slot_decision, Slot}, #state{proposals=Proposals}=State) ->
-    util_ht:del(Slot, Proposals),
-    {noreply, State};
+handle_cast({slot_decision, Slot}, #state{hash_table=HT,
+                                          proposals=Proposals}=State) ->
+    {noreply, State#state{proposals=HT:del(Slot, Proposals)}};
 %% Deactivate leader when node is joining a cluster
 handle_cast(cluster_join, State) ->
     {noreply, State#state{active=false}};
 %% Reset leader local state
-handle_cast(reset, #state{proposals=Proposals}=State) ->
-    util_ht:reset(Proposals),
-    {noreply, State};
+handle_cast(reset, #state{hash_table=HT, proposals=Proposals}=State) ->
+    {noreply, State#state{proposals=HT:reset(Proposals)}};
 %% Increment leader view
-handle_cast(incr_view, #state{ballot_num=Ballot, proposals=Proposals}=State) ->
+handle_cast(incr_view, #state{hash_table=HT,
+                              ballot_num=Ballot, proposals=Proposals}=State) ->
     NewBallot = consensus_util:incr_view(Ballot),
-    util_ht:reset(Proposals),
+    Proposals1 = HT:reset(Proposals),
     % Run scout round to push it to acceptors
     % TODO: Test possibility of two scouts running
     consensus_scout_sup:create({?SELF, NewBallot}),
-    {noreply, State#state{ballot_num=NewBallot}};
+    {noreply, State#state{ballot_num=NewBallot, proposals=Proposals1}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -250,25 +266,38 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% intersect replaces all local proposals with ones from PValues and also
 %% adds additional entries in MaxPValues to its proposals set
-intersect(Proposals, PVals) ->
-    lists:foreach(fun({Slot, {_Ballot, Proposal}}) ->
-                          util_ht:set(Slot, Proposal, Proposals)
-                  end,
-                  PVals).
+intersect(_HT, Proposals, []) ->
+    Proposals;
+intersect(HT, Proposals, [{Slot, {_Ballot, Proposal}}|PVals]) ->
+    Proposals1 = case HT:get(Slot, Proposals) of
+        {_Prop, CommanderStatus} ->
+            HT:set(Slot, {Proposal, CommanderStatus}, Proposals);
+        not_found ->
+            HT:set(Slot, {Proposal, ?COMMANDER_OFF}, Proposals)
+    end,
+    intersect(HT, Proposals1, PVals).
 
 spawn_commander(PValue) ->
-    consensus_commander_sup:create({?SELF, PValue}).
+    consensus_commander:start({?SELF, PValue}).
+    %consensus_commander_sup:create({?SELF, PValue}).
 
-spawn_commanders(Ballot, Proposals) ->
-    spawn_commanders_lst(Ballot, util_ht:to_list(Proposals)).
+spawn_commanders(HT, Ballot, Proposals) ->
+    spawn_commanders_lst(HT, Ballot, HT:to_list(Proposals), Proposals).
 
-spawn_commanders_lst(_Ballot, []) ->
-    ok;
-spawn_commanders_lst(Ballot, [H|L]) ->
-    {Slot, Proposal} = H,
-    PValue = {Ballot, Slot, Proposal},
-    consensus_commander_sup:create({?SELF, PValue}),
-    spawn_commanders_lst(Ballot, L).
+spawn_commanders_lst(_HT, _Ballot, [], Proposals) ->
+    Proposals;
+spawn_commanders_lst(HT, Ballot, [H|L], Proposals) ->
+    {Slot, {Proposal, CommanderStatus}} = H,
+    % Spawn commander only if one doesn't already exit for this slot
+    NewProposals = case CommanderStatus of
+        ?COMMANDER_OFF ->
+            PValue = {Ballot, Slot, Proposal},
+            spawn_commander(PValue),
+            HT:set(Slot, {Proposal, ?COMMANDER_ON}, Proposals);
+        ?COMMANDER_ON ->
+            Proposals
+    end,
+    spawn_commanders_lst(HT, Ballot, L, NewProposals).
 
 % Start Scout only if we do not have a master with valid lease
 % This is equivalent to monitoring the master / failure detection
@@ -301,7 +330,7 @@ check_master_start_commander(NewPValue) ->
     % Restart the commander only if still master and lease valid
     case consensus_state:is_master() andalso (LeaseTime > ?MIN_LEASE) of
         true ->
-            consensus_commander_sup:create({?SELF, NewPValue});
+            spawn_commander(NewPValue);
         false ->
             ok
     end.
