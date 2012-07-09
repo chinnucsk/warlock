@@ -30,10 +30,12 @@
 start() ->
     Name = conf_helper:get(name, ?MODULE),
     Options = conf_helper:get(options, ?MODULE),
+    db_ets_timer:start_link(),
     {ok, #client{inst=ets:new(Name, Options)}}.
 
 -spec start(list()) -> {ok, #client{}}.
 start([Name | Options]) ->
+    db_ets_timer:start_link(),
     {ok, #client{inst=ets:new(Name, Options)}}.
 
 -spec reset(Client::#client{}) -> {ok, #client{}}.
@@ -61,6 +63,7 @@ ping(#client{inst=Table}) ->
     end.
 
 -spec x(Cmd::term(), Client::#client{}) -> term().
+% Get object with given key
 x([get, Key], #client{inst=Table}) ->
     case ets:lookup(Table, Key) of
         [] ->
@@ -70,14 +73,31 @@ x([get, Key], #client{inst=Table}) ->
         [_H | _T] ->
             {error, multiple_values}
     end;
+% Store object
 x([set, Key, Value], #client{inst=Table}) ->
     true = ets:insert(Table, {Key, Value}),
     {ok, success};
+% Set object if not already set
 x([setnx, Key, Value], Client) ->
     case x([get, Key], Client) of
         {ok, not_found} ->
             x([set, Key, Value], Client);
         {ok, _Value} ->
+            {ok, not_set}
+    end;
+% Store object if not set
+% Extend expire if already set,  "Value" should be equal to the one in the db
+% Time in milli seconds
+x([setenx, Time, Key, Value], Client) ->
+    case x([get, Key], Client) of
+        {ok, not_found} ->
+            Result = x([set, Key, Value], Client),
+            db_ets_timer:expire_after(Time, Key),
+            Result;
+        {ok, Value} ->
+            db_ets_timer:expire_after(Time, Key),
+            {ok, success};
+        {ok, _Val} ->
             {ok, not_set}
     end;
 x([del, Key], #client{inst=Table}) ->

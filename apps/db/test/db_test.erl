@@ -75,6 +75,19 @@ simple_run() ->
             ResetDBVals = get_mult(Keys),
             ?assertNotEqual(Vals, ResetDBVals),
 
+            % Timer test
+            ResultTimer1 = db:x([setenx, 1000, a, b]),
+            ?assertEqual(ResultTimer1, {ok, success}),
+            timer:sleep(500),
+            ResultTimer2 = db:x([setenx, 1000, a, b]),
+            ?assertEqual(ResultTimer2, {ok, success}),
+            timer:sleep(500),
+            ResultTimer3 = db:x([get, a]),
+            ?assertEqual(ResultTimer3, {ok, b}),
+            timer:sleep(500),
+            ResultTimer4 = db:x([get, a]),
+            ?assertEqual(ResultTimer4, {ok, not_found}),
+
             % Backup test
             insert_mult(Keys, Vals),
             File = "./tmp-db-test",
