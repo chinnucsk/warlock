@@ -98,7 +98,7 @@ handle_call(_Request, _From, State) ->
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
 % READ request sent from client
-handle_cast({request, #dop{type=read}=Proposal}, State) ->
+handle_cast({request, #dop{type=?LOCAL}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received read message ~p", [self(), {request, Proposal}]),
     % Execute the decision directly
     ?CLIENT:exec(Proposal),

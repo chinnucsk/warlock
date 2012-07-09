@@ -9,7 +9,7 @@
 %% setup code
 %%-------------------------------------------------------------------
 apps() ->
-    [compiler, syntax_tools, lager, consensus].
+    [compiler, syntax_tools, lager, db, consensus, server].
 
 app_start() ->
     lists:foreach (fun (App) ->
@@ -44,9 +44,9 @@ app_stop(_) ->
 %% test code
 %%-------------------------------------------------------------------
 
-receive_cast() ->
+receive_cast(Ref) ->
     receive
-        {'$gen_cast',{response,Val}} ->
+        {'$gen_cast',{response, Ref, Val}} ->
             Val
     end.
 
@@ -65,25 +65,29 @@ simple_run() ->
     timer:sleep(1000),
 
     % Set the current node as master for the test
-    Operation1 = #dop{type=write,
-                     module=lists,
-                     function=min,
-                     args=[1, 2, 3, 4],
-                     client=self()
+    Ref1 = erlang:make_ref(),
+    Operation1 = #dop{type=?CLUSTER,
+                     module=server_callback,
+                     function=handle,
+                     args=[set, a, b],
+                     client={self(), Ref1}
                      },
     consensus:propose(Operation1),
 
-    ?assertEqual(receive_cast(), 1),
+    Result1 = receive_cast(Ref1),
+    ?assertEqual(Result1, {ok, success}),
 
-    Operation2 = #dop{type=write,
-                     module=lists,
-                     function=max,
-                     args=[1, 2, 3, 4],
-                     client=self()
+    Ref2 = erlang:make_ref(),
+    Operation2 = #dop{type=?LOCAL,
+                     module=server_callback,
+                     function=handle,
+                     args=[get, a],
+                     client={self(), Ref2}
                      },
     consensus:propose(Operation2),
 
-    ?assertEqual(receive_cast(), 4).
+    Result2 = receive_cast(Ref2),
+    ?assertEqual(Result2, {ok, b}).
 
 %%-------------------------------------------------------------------
 %% internal functions

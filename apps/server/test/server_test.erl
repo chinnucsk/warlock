@@ -51,13 +51,13 @@ simple_run() ->
     timer:sleep(100),
 
     {Key, Val} = {kkey, vval},
-    ?assertEqual({ok, success}, server:x([set, Key, Val])),
+    ?assertEqual({ok, success}, server:x(?CLUSTER, [set, Key, Val])),
 
-    ?assertEqual({ok, Val}, server:x([get, Key])),
+    ?assertEqual({ok, Val}, server:x(?LOCAL, [get, Key])),
 
-    ?assertEqual({ok, success}, server:x([del, Key])),
+    ?assertEqual({ok, success}, server:x(?CLUSTER, [del, Key])),
 
-    ?assertEqual({ok, not_found}, server:x([get, Key])).
+    ?assertEqual({ok, not_found}, server:x(?LOCAL, [get, Key])).
 
 
 %%-------------------------------------------------------------------

@@ -82,7 +82,7 @@
 -record(dop, {
           %% Type of operation determine what has to be done
           %% The selective execution is done by the consensus "client"
-          %% read, write
+          %% ?LOCAL/?CLUSTER
           type,
 
           %% Usually server_callback
@@ -97,3 +97,12 @@
           %% Pid of the client to whom reply has to be sent to
           client
 }).
+
+%% Request type
+-define(LOCAL, loc).
+-define(CLUSTER, cls).
+
+
+
+
+

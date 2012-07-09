@@ -57,13 +57,13 @@ simple_run() ->
 
     server_callback:set_inactive(),
 
-    ?assertEqual({ok, queued}, server:x([set, Key, Val])),
-    ?assertEqual({ok, queued}, server:x([set, Key1, Val1])),
+    ?assertEqual({ok, queued}, server:x(?CLUSTER, [set, Key, Val])),
+    ?assertEqual({ok, queued}, server:x(?CLUSTER, [set, Key1, Val1])),
 
-    ?assertEqual({ok, not_found}, server:x([get, Key])),
-    ?assertEqual({ok, not_found}, server:x([get, Key1])),
+    ?assertEqual({ok, not_found}, server:x(?LOCAL, [get, Key])),
+    ?assertEqual({ok, not_found}, server:x(?LOCAL, [get, Key1])),
 
-    ?assertEqual({ok, queued}, server:x([del, Key])),
+    ?assertEqual({ok, queued}, server:x(?CLUSTER, [del, Key])),
 
     % Set server_callback back to active and see if decisions are processed
 
@@ -72,12 +72,12 @@ simple_run() ->
 
     case server_callback:is_active() of
         true ->
-            ?assertEqual({ok, not_found}, server:x([get, Key])),
-            ?assertEqual({ok, Val1}, server:x([get, Key1])),
+            ?assertEqual({ok, not_found}, server:x(?LOCAL, [get, Key])),
+            ?assertEqual({ok, Val1}, server:x(?LOCAL, [get, Key1])),
 
-            ?assertEqual({ok, success}, server:x([del, Key1])),
+            ?assertEqual({ok, success}, server:x(?CLUSTER, [del, Key1])),
 
-            ?assertEqual({ok, not_found}, server:x([get, Key1]));
+            ?assertEqual({ok, not_found}, server:x(?LOCAL, [get, Key1]));
         false ->
             ok
     end.

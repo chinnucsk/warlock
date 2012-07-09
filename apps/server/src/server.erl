@@ -27,7 +27,7 @@
 %% Public interface
 %% -----------------------------------------------------------------
 -export([ping/0, ping_service/0, ping_backend/0,
-         x/1,
+         x/2,
          repl/1,
          receive_complete/1, ready_repl/1
          ]).
@@ -42,7 +42,7 @@
 
 %% Send request to server worker (single gen_server) or use a new gen_server for
 %% every request. Latter is faster
--define(WORKER(Cmd), server_worker:request(Cmd)).
+-define(WORKER(Type, Cmd), server_worker:request(Type, Cmd)).
 %-define(WORKER(Cmd), spawncall_worker(Cmd)).
 
 %% -----------------------------------------------------------------
@@ -76,10 +76,16 @@ ping_backend() ->
 %%-------------------------------------------------------------------
 %% @doc
 %% eXecute a command on the database
+%% loc = execute the command on the local replica. Usually for reads
+%% cls = execute the command on the cluster. Must for writes
 %%-------------------------------------------------------------------
--spec x(term()) -> term().
-x(Cmd) ->
-    ?WORKER(Cmd).
+-spec x(loc|cls, term()) -> term().
+x(?LOCAL, Cmd) ->
+    ?WORKER(?LOCAL, Cmd);
+x(?CLUSTER, Cmd) ->
+    ?WORKER(?CLUSTER, Cmd);
+x(_, _Cmd) ->
+    erlang:error(unknown_type).
 
 %%-------------------------------------------------------------------
 %% @doc

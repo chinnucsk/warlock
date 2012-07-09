@@ -21,7 +21,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start/0, start_link/0, request/1]).
+-export([start/0, start_link/0, request/2]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -63,17 +63,17 @@ start() ->
 init([]) ->
     {ok, #state{requests=ets_ht:new([ets_ht])}}.
 
-request(Cmd) ->
-    gen_server:call(?MODULE, {request, Cmd}).
+request(Type, Cmd) ->
+    gen_server:call(?MODULE, {request, {Type, Cmd}}).
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
 %% Request is sent by server
-handle_call({request, Cmd}, From, #state{requests=Requests}=State) ->
+handle_call({request, {Type, Cmd}}, From, #state{requests=Requests}=State) ->
     TRef = erlang:start_timer(?TIMEOUT, self(), ?MODULE),
     ets_ht:set(TRef, From, Requests),
-    Operation = get_operation(Cmd, {self(), TRef}),
+    Operation = get_operation(Type, Cmd, {self(), TRef}),
     consensus:propose(Operation),
     {noreply, State};
 handle_call(_Request, _From, State) ->
@@ -128,9 +128,9 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-get_operation(Cmd, ClientId) ->
+get_operation(Type, Cmd, ClientId) ->
     #dop{
-         type = server_util:get_type(Cmd),
+         type = Type,
          module = server_callback,
          function = handle,
          args = Cmd,

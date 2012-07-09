@@ -37,9 +37,8 @@
 %% Send read request to the master replica
 %% Note: Here we are assuming Operation is uniquely identified
 -spec propose(#dop{}) -> ok.
-propose(#dop{type=read}=Operation) ->
+propose(#dop{type=?LOCAL}=Operation) ->
     %% Check if lease is valid, if yes, execute on local replica
-    %% TODO: Add option to allow master only reads
     LeaseTime = consensus_state:get_lease_validity(),
     case (LeaseTime > ?MIN_LEASE) of
         true ->
@@ -77,9 +76,9 @@ exec(#dop{type = Type,
     ?LDEBUG("RESULT ==>> ~p", [Result]),
 
     case Type of
-        read ->
+        ?LOCAL ->
             ?ASYNC_MSG(Client, {response, Ref, Result});
-        write ->
+        ?CLUSTER ->
             case consensus_state:is_master() of
                 true ->
                     ?ASYNC_MSG(Client, {response, Ref, Result});

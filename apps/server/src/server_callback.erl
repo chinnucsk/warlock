@@ -64,9 +64,9 @@ start_link() ->
 %% Read commands are sent to db directly (better read performance)
 %% Backend needs to handle reads parallely when taking backups
 -spec handle(atom(), term()) -> term().
-handle(read, Cmd) ->
+handle(?LOCAL, Cmd) ->
         db:x(Cmd);
-handle(write, Cmd) ->
+handle(?CLUSTER, Cmd) ->
         gen_server:call(?MODULE, {x, Cmd}).
 
 -spec set_inactive() -> ok.
