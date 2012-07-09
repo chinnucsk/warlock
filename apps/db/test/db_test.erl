@@ -75,18 +75,33 @@ simple_run() ->
             ResetDBVals = get_mult(Keys),
             ?assertNotEqual(Vals, ResetDBVals),
 
-            % Timer test
-            ResultTimer1 = db:x([setenx, 1000, a, b]),
-            ?assertEqual(ResultTimer1, {ok, success}),
-            timer:sleep(500),
-            ResultTimer2 = db:x([setenx, 1000, a, b]),
-            ?assertEqual(ResultTimer2, {ok, success}),
-            timer:sleep(500),
-            ResultTimer3 = db:x([get, a]),
-            ?assertEqual(ResultTimer3, {ok, b}),
-            timer:sleep(500),
-            ResultTimer4 = db:x([get, a]),
-            ?assertEqual(ResultTimer4, {ok, not_found}),
+            % SETEX test
+            ResultSetex1 = db:x([setenx, 100, x, y]),
+            ?assertEqual({ok, success}, ResultSetex1),
+            timer:sleep(100),
+            ResultSetex2 = db:x([get, x]),
+            ?assertEqual({ok, not_found}, ResultSetex2),
+
+            % EXPIRE test
+            ResultExp1 = db:x([set, m, n]),
+            ?assertEqual({ok, success}, ResultExp1),
+            {ok, _} = db:x([expire, 100, m]),
+            timer:sleep(101),
+            ResultExp2 = db:x([get, m]),
+            ?assertEqual({ok, not_found}, ResultExp2),
+
+            % SETENX test
+            ResultSetenx1 = db:x([setenx, 100, a, b]),
+            ?assertEqual({ok, success}, ResultSetenx1),
+            timer:sleep(50),
+            ResultSetenx2 = db:x([setenx, 100, a, b]),
+            ?assertEqual({ok, success}, ResultSetenx2),
+            timer:sleep(50),
+            ResultSetenx3 = db:x([get, a]),
+            ?assertEqual({ok, b}, ResultSetenx3),
+            timer:sleep(50),
+            ResultSetenx4 = db:x([get, a]),
+            ?assertEqual({ok, not_found}, ResultSetenx4),
 
             % Backup test
             insert_mult(Keys, Vals),

@@ -85,9 +85,16 @@ x([setnx, Key, Value], Client) ->
         {ok, _Value} ->
             {ok, not_set}
     end;
-% Store object if not set
+% Store object with expiry.Time in milli seconds
+x([setex, Time, Key, Value], Client) ->
+    Result = x([set, Key, Value], Client),
+    db_ets_timer:expire_after(Time, Key),
+    Result;
+% Set expiry for object with given key
+x([expire, Time, Key], _Client) ->
+    db_ets_timer:expire_after(Time, Key);
+% Store object if not set. Time in milli seconds
 % Extend expire if already set,  "Value" should be equal to the one in the db
-% Time in milli seconds
 x([setenx, Time, Key, Value], Client) ->
     case x([get, Key], Client) of
         {ok, not_found} ->
@@ -100,6 +107,7 @@ x([setenx, Time, Key, Value], Client) ->
         {ok, _Val} ->
             {ok, not_set}
     end;
+% Delete object with given Key
 x([del, Key], #client{inst=Table}) ->
     true = ets:delete(Table, Key),
     {ok, success};
