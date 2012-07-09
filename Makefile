@@ -4,6 +4,7 @@ SHELL := /bin/bash
 
 REBAR=./rebar
 APP=dlock
+REPO=dlock
 
 all: small_clean deps compile
 
@@ -47,7 +48,7 @@ test: deps compile testclean
 		  exit `wc -l < $(TEST_LOG_FILE)`; \
 	  fi
 
-complete: small_clean deps compile test docs dia
+complete: small_clean deps compile test docs dialyzer
 	@echo ok
 
 ## Release
@@ -55,8 +56,13 @@ complete: small_clean deps compile test docs dia
 rel: deps
 	$(REBAR) compile generate
 
+relp: deps
+	$(REBAR) compile generate
+	(cd rel && tar -cvzf $(APP).tgz $(APP))
+
 relclean:
 	rm -rf rel/$(APP)
+	rm -f rel/$(APP).tgz
 
 ## Dev
 
@@ -80,20 +86,25 @@ check_plt: compile
 	  deps/*/ebin
 
 build_plt: compile
-	@echo Use "'make build_plt'" to build PLT prior to using this target.
-	@echo
-	@sleep 1
-	dialyzer -Wno_return --plt $(COMBO_PLT) deps/*/ebin | \
-	  fgrep -v -f ./dialyzer.ignore-warnings
+	dialyzer --build_plt --output_plt $(COMBO_PLT) --apps $(APPS) \
+	  deps/*/ebin
+
+dialyzer: compile
+	  @echo
+	  @echo Use "'make check_plt'" to check PLT prior to using this target.
+	  @echo Use "'make build_plt'" to build PLT prior to using this target.
+	  @echo
+	  @sleep 1
+	  dialyzer -Wno_return --plt $(COMBO_PLT) deps/*/ebin | \
+		fgrep -v -f ./dialyzer.ignore-warnings
 
 cleanplt:
-	@echo
-	@echo "Are you sure?  It takes about 1/2 hour to re-build."
-	@echo Deleting $(COMBO_PLT) in 5 seconds.
-	@echo
-	sleep 5
-	rm $(COMBO_PLT)
-
+	  @echo
+	  @echo "Are you sure?  It takes about 1/2 hour to re-build."
+	  @echo Deleting $(COMBO_PLT) in 5 seconds.
+	  @echo
+	  sleep 5
+	  rm $(COMBO_PLT)
 
 
 .PHONY: all small_clean clean compile test docs dia complete rel deps
