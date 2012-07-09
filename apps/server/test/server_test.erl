@@ -35,7 +35,7 @@ app_stop(_) ->
 %% test code
 %%-------------------------------------------------------------------
 
-db_test_() ->
+server_test_() ->
     {timeout, 60,
      {setup,
       fun app_start/0,

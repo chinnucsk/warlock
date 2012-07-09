@@ -6,7 +6,7 @@
 %%%
 %%% @doc Server wrapper, interface for handling server requests
 %%%
-%%% The Server module consists of a supervised worker that runs
+%%% The Server module consists of a worker that runs
 %%% commands on the local DB as per consensus
 %%%
 %%% How a request is handled
@@ -21,7 +21,6 @@
 %%% @since : 01 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
-%% TODO: Write specs
 -module(server).
 
 %% -----------------------------------------------------------------
@@ -29,8 +28,9 @@
 %% -----------------------------------------------------------------
 -export([ping/0, ping_service/0, ping_backend/0,
          x/1,
-         receive_complete/1, ready_repl/1,
-         repl/1]).
+         repl/1,
+         receive_complete/1, ready_repl/1
+         ]).
 
 %% -----------------------------------------------------------------
 %% Private macros and include files
@@ -39,6 +39,11 @@
 -include("server.hrl").
 
 -define(SELF_NODE, node()).
+
+%% Send request to server worker (single gen_server) or use a new gen_server for
+%% every request. Latter is faster
+-define(WORKER(Cmd), server_worker:request(Cmd)).
+%-define(WORKER(Cmd), spawncall_worker(Cmd)).
 
 %% -----------------------------------------------------------------
 %% Public functions
@@ -74,7 +79,7 @@ ping_backend() ->
 %%-------------------------------------------------------------------
 -spec x(term()) -> term().
 x(Cmd) ->
-    spawncall_worker(Cmd).
+    ?WORKER(Cmd).
 
 %%-------------------------------------------------------------------
 %% @doc
@@ -123,11 +128,9 @@ ready_repl(FromNode) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-
-%% TODO: Check if there is a usecase where we need cast worker
-spawncall_worker(Cmd) ->
-    {ok, Worker} = server_command_worker:start_link(),
-    try gen_server:call(Worker, {request, Cmd})
-    catch
-        exit:{timeout, _} -> {error, timeout}
-    end.
+%% spawncall_worker(Cmd) ->
+%%     {ok, Worker} = server_command_worker:start(),
+%%     try gen_server:call(Worker, {request, Cmd})
+%%     catch
+%%         exit:{timeout, _} -> {error, timeout}
+%%     end.

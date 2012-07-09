@@ -56,4 +56,7 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    {ok, {SupFlags, [?CHILD(server_callback, permanent, worker)]}}.
+    {ok, {SupFlags, [
+                     ?CHILD(server_callback, permanent, worker),
+                     ?CHILD(server_worker, permanent, worker)
+                     ]}}.

@@ -22,7 +22,7 @@
 %% API Function Exports
 %% ------------------------------------------------------------------
 -export([start_link/0,
-         handle/1,
+         handle/2,
          trig_active/0, set_inactive/0, is_active/0,
          add_subscriber/1, remove_subscriber/1]).
 
@@ -63,14 +63,11 @@ start_link() ->
 %% Main callback
 %% Read commands are sent to db directly (better read performance)
 %% Backend needs to handle reads parallely when taking backups
--spec handle(term()) -> term().
-handle(Cmd) ->
-    case server_util:get_type(Cmd) of
-        read ->
-            db:x(Cmd);
-        write ->
-            gen_server:call(?MODULE, {x, Cmd})
-    end.
+-spec handle(atom(), term()) -> term().
+handle(read, Cmd) ->
+        db:x(Cmd);
+handle(write, Cmd) ->
+        gen_server:call(?MODULE, {x, Cmd}).
 
 -spec set_inactive() -> ok.
 set_inactive() ->
