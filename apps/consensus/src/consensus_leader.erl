@@ -58,7 +58,17 @@
             % A map of slot numbers to proposals in the form of a set
             % At any time, there is at most one entry per slot number in the set
             % Third parameter tracks if a commander has been spawned for it
-            proposals
+            proposals,
+
+            % Reference to the timer. Timer can be run for multiple cases
+            % 1. renew: Renew master's lease
+            % 2. backoff: Backoff and spawn scout when pre-empted
+            % 3. master_check: When not master, check if lease valid and
+            %    try to become master
+            % 4. membership: If node is not part of "members", retry timer
+            % Only one of them needs to be running at any given point
+            % Format: {status, timer_reference}
+            timer_ref
 }).
 
 %% ------------------------------------------------------------------
@@ -169,39 +179,47 @@ handle_cast({adopted, {CurrBallot, PValues}},
 %% master_adopted message sent by master_commander when everyone has accepted
 %% this leader as their master
 handle_cast({master_adopted, CurrBallot},
-            #state{hash_table=HT, proposals = Proposals,
+            #state{hash_table=HT, timer_ref=OldTimerRef, proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {master_adopted, CurrBallot}]),
 
     % Set a timer to renew the lease
-    erlang:send_after(?RENEW_LEASE_TIME, ?SELF, renew_master),
+    TimerRef = create_timer(OldTimerRef, renew,
+                            ?RENEW_LEASE_TIME, ?SELF, renew_master),
 
     % Spawn a commander for every proposal
     Proposals1 = spawn_commanders(HT, CurrBallot, Proposals),
-    {noreply, State#state{active = true, proposals=Proposals1}};
+    {noreply, State#state{active=true,
+                          timer_ref=TimerRef,
+                          proposals=Proposals1}};
 %% preempted message sent by either a scout or a commander, it means that some
 %% acceptor has adopted some other ballot
-handle_cast({preempted, ABallot}, #state{ballot_num = CurrBallot} = State) ->
+handle_cast({preempted, ABallot}, #state{ballot_num=CurrBallot,
+                                         timer_ref=OldTimerRef} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(), {preempted, ABallot}]),
 
     % If the new ballot number is bigger, increase ballot number and scout for
     % the next adoption
-    NewBallot = case consensus_util:ballot_greater(ABallot, CurrBallot) of
-        true ->
-            NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
-            erlang:send_after(?BACKOFF_TIME, ?SELF, spawn_scout),
-            NextBallot;
-        false ->
-            CurrBallot
+    {NewBallot, NewTimerRef} =
+        case consensus_util:ballot_greater(ABallot, CurrBallot) of
+            true ->
+                NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
+                TimerRef = create_timer(OldTimerRef, backoff,
+                                        ?BACKOFF_TIME, ?SELF, spawn_scout),
+                {NextBallot, TimerRef};
+            false ->
+                {CurrBallot, OldTimerRef}
     end,
-    {noreply, State#state{active=false, ballot_num=NewBallot}};
+    {noreply, State#state{active=false,
+                          timer_ref=NewTimerRef,
+                          ballot_num=NewBallot}};
 %% TODO: Timeouts most probably happen due to partition (check)
 %% Just restart them from now
 %% Scout has timed out after waiting for replies
-handle_cast(scout_timeout, #state{ballot_num = Ballot} = State) ->
-    check_master_start_scout(Ballot),
-    {noreply, State};
+handle_cast(scout_timeout, State) ->
+    NewState = check_master_start_scout(State),
+    {noreply, NewState};
 %% Commander has timed out after waiting for replies
 handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     {_OldBallot, Slot, Proposal} = PValue,
@@ -234,18 +252,19 @@ handle_cast(_Msg, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
-handle_info(spawn_scout, #state{ballot_num=Ballot}=State) ->
-    check_master_start_scout(Ballot),
-    {noreply, State};
-handle_info(renew_master, #state{ballot_num=Ballot}=State) ->
+handle_info({timeout, _Ref, spawn_scout}, State) ->
+    NewState = check_master_start_scout(State),
+    {noreply, NewState};
+handle_info({timeout, _Ref, renew_master}, #state{ballot_num=Ballot}=State) ->
     % Check if we are still master, if yes extend lease
-    case consensus_state:is_master() of
+    NewState = case consensus_state:is_master() of
         true ->
-            consensus_rcfg:set_master(Ballot);
+            consensus_rcfg:set_master(Ballot),
+            State;
         false ->
-            check_master_start_scout(Ballot)
+            check_master_start_scout(State)
     end,
-    {noreply, State};
+    {noreply, NewState};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -299,10 +318,19 @@ spawn_commanders_lst(HT, Ballot, [H|L], Proposals) ->
     end,
     spawn_commanders_lst(HT, Ballot, L, NewProposals).
 
+% Cancel old timer and create new timer
+create_timer({_OldStatus, OldRef}, Status, Time, Proc, Msg)
+  when is_reference(OldRef)->
+    erlang:cancel_timer(OldRef),
+    {Status, erlang:start_timer(Time, Proc, Msg)};
+create_timer(_, Status, Time, Proc, Msg) ->
+    {Status, erlang:start_timer(Time, Proc, Msg)}.
+
 % Start Scout only if we do not have a master with valid lease
 % This is equivalent to monitoring the master / failure detection
-check_master_start_scout(Ballot) ->
-    case consensus_state:is_status(valid) of
+check_master_start_scout(#state{ballot_num=Ballot,
+                                timer_ref=OldTimerRef}=State) ->
+    NewTimerRef = case consensus_state:is_status(valid) of
         true ->
             % If lease is going to timeout and we are not the master
             % then start scout
@@ -310,18 +338,23 @@ check_master_start_scout(Ballot) ->
             case {(LeaseTime =< ?MIN_LEASE), consensus_state:is_master()} of
                 {true, false} ->
                     ?LDEBUG("Master expired, start scout"),
-                    consensus_scout_sup:create({?SELF, Ballot});
+                    consensus_scout_sup:create({?SELF, Ballot}),
+                    OldTimerRef;
                 {false, false} ->
                     ?LDEBUG("Master still running, try after some time"),
-                    erlang:send_after(LeaseTime, ?SELF, spawn_scout);
+                    create_timer(OldTimerRef, master_check,
+                                 LeaseTime, ?SELF, spawn_scout);
                 {_, true} ->
-                    ?LWARNING("Master failed to renew lease")
+                    ?LWARNING("Master failed to renew lease"),
+                    OldTimerRef
             end;
         % Not a valid member, try after some time
         % TODO: Calibrate this time
         false ->
-            erlang:send_after(?LEASE_TIME, ?SELF, spawn_scout)
-    end.
+            create_timer(OldTimerRef, membership,
+                         ?LEASE_TIME, ?SELF, spawn_scout)
+    end,
+    State#state{timer_ref=NewTimerRef}.
 
 
 % Start Commander only if we do not have a master with valid lease
