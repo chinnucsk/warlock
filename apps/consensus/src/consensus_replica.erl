@@ -114,7 +114,6 @@ handle_cast({request, #rop{type=Type}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(), {request, Proposal}]),
     Slot = consensus_rcfg:get_slot(Type),
     Message = {propose_rcfg, {Slot, Proposal}},
-    % TODO: Make this configurable
     ?ASYNC_MSG(?LEADER, Message),
     {noreply, State};
 
@@ -190,7 +189,6 @@ propose(Proposal, #state{hash_table=HT,
         not_found ->
             Proposals1 = HT:set(MinSlot, Proposal, Proposals),
             Message = {propose, {MinSlot, Proposal}},
-            % TODO: Make this configurable
             ?ASYNC_MSG(master_leader, Message),
             State#state{min_slot_num = MinSlot + 1,
                         proposals=Proposals1};

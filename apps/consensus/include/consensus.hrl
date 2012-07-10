@@ -22,7 +22,7 @@
 -type proposal() :: #rop{} | term().
 -type pvalue() :: {ballot(), slot(), proposal()}.
 
-%% Registered names of a consensus cluster actors
+%% Registered names of consensus cluster actors
 -define(LEADER, consensus_leader).
 -define(REPLICA, consensus_replica).
 -define(ACCEPTOR, consensus_acceptor).

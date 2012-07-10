@@ -49,7 +49,6 @@ propose(#dop{type=?LOCAL}=Operation) ->
 %% Send other requests to the local replica
 propose(Operation) ->
     Msg = {request, Operation},
-    % TODO: Make this configurable
     ?ASYNC_MSG(?REPLICA, Msg).
 
 %% Send the request to all replicas
@@ -59,7 +58,6 @@ propose(Operation) ->
 -spec propose_rcfg(#rop{}) -> ok.
 propose_rcfg(Operation) ->
     Msg = {request, Operation},
-    % TODO: Make this configurable
     ?ASYNC_MSG(replicas, Msg).
 
 %% Execute the callback function in the operation
