@@ -149,7 +149,8 @@ handle_cast({decision, {Slot, Proposal}},
 handle_cast(reset, #state{hash_table=HT,
                           proposals=Proposals,
                           decisions = Decisions}) ->
-    {noreply, #state{proposals=HT:reset(Proposals),
+    {noreply, #state{hash_table=HT,
+                     proposals=HT:reset(Proposals),
                      decisions=HT:reset(Decisions)}};
 %% Unknown message
 handle_cast(_Msg, State) ->
