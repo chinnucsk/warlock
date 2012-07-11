@@ -141,15 +141,9 @@ handle_cast({decision_rcfg, Proposal}, State) ->
     {noreply, State};
 % Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},
-            #state{hash_table=HT,decisions = Decisions,
-                   slot_num=SlotNum, min_slot_num=MinSlot} = State) ->
+            #state{hash_table=HT,decisions = Decisions} = State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(),
                                             {decision, {Slot, Proposal}}]),
-
-    ?LINFO("REP::decision:slot_num:min_slot_num:::~p:~p:~p",
-           [Slot, SlotNum, MinSlot]),
-
-
     % Add the decision to the set of decisions
 
     % A safety check to see if this is a duplicate decision
