@@ -95,6 +95,11 @@ callback(#rop{type=election,
 
     consensus_state:set_master(Node, Lease),
 
+    % All proposals made to the old master are no longer valid since they
+    % will not get quorum. Reset the min_slot_num to slot_num to repropose
+    % for the unused slots. Requests sent to old master will timeout
+    ?ASYNC_MSG(?REPLICA, new_master),
+
     % If master, send a message to create timer for renewing the lease
     case Node =:= ?SELF_NODE of
         true ->
