@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0, reset/0, incr_view/0]).
+-export([start_link/0, reset/0, incr_view/0, monitor/1]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -87,6 +87,11 @@ reset() ->
 -spec incr_view() -> ok.
 incr_view() ->
     gen_server:cast(?MODULE, incr_view).
+
+%% As master, monitor new node added to cluster
+-spec monitor(node()) -> ok.
+monitor(Node) ->
+    gen_server:cast(?MODULE, {monitor, Node}).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
@@ -178,7 +183,7 @@ handle_cast({adopted, {CurrBallot, PValues}},
     {noreply, State#state{active=true, proposals=Proposals1}};
 %% master_adopted message sent by master_commander when everyone has accepted
 %% this leader as their master
-handle_cast({master_adopted, CurrBallot},
+handle_cast({master_adopted, CurrBallot, OldMaster},
             #state{hash_table=HT, timer_ref=OldTimerRef, proposals = Proposals,
                    ballot_num = CurrBallot} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
@@ -187,6 +192,17 @@ handle_cast({master_adopted, CurrBallot},
     % Set a timer to renew the lease
     TimerRef = create_timer(OldTimerRef, renew,
                             ?RENEW_LEASE_TIME, ?SELF, renew_master),
+
+    % If new master: mark old master down, monitor all members
+    case {OldMaster /= ?SELF_NODE, OldMaster /= undefined} of
+        {true, true} ->
+            consensus_rcfg:node_down(OldMaster),
+            monitor_members();
+        {true, false} ->
+            monitor_members();
+        {false, _} ->
+            ok
+    end,
 
     % Spawn a commander for every proposal
     Proposals1 = spawn_commanders(HT, CurrBallot, Proposals),
@@ -202,7 +218,7 @@ handle_cast({preempted, ABallot}, #state{ballot_num=CurrBallot,
     % If the new ballot number is bigger, increase ballot number and scout for
     % the next adoption
     {NewBallot, NewTimerRef} =
-        case consensus_util:ballot_greater(ABallot, CurrBallot) of
+        case consensus_util:ballot_greateq(ABallot, CurrBallot) of
             true ->
                 NextBallot = consensus_util:incr_ballot(CurrBallot, ABallot),
                 TimerRef = create_timer(OldTimerRef, backoff,
@@ -223,7 +239,7 @@ handle_cast(scout_timeout, State) ->
 %% Commander has timed out after waiting for replies
 handle_cast({commander_timeout, PValue}, #state{ballot_num = Ballot} = State) ->
     {_OldBallot, Slot, Proposal} = PValue,
-    ?LINFO("LEA::timeout::~p", Proposal),
+    ?LINFO("LEA::timeout::~p", [Proposal]),
     NewPValue = {Ballot, Slot, Proposal},
     check_master_start_commander(NewPValue),
     {noreply, State};
@@ -246,6 +262,14 @@ handle_cast(incr_view, #state{hash_table=HT,
     % TODO: Test possibility of two scouts running
     consensus_scout_sup:create({?SELF, NewBallot}),
     {noreply, State#state{ballot_num=NewBallot, proposals=Proposals1}};
+%% Monitor a node newly added to the cluster
+handle_cast({monitor, Node}, State) ->
+    erlang:monitor(process, {?LEADER, Node}),
+    {noreply, State};
+%% Got a shutdown signal because the cluster has marked it as down
+handle_cast(stop_out_of_sync, State) ->
+    consensus_util:stop_app(),
+    {noreply, State};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
@@ -265,6 +289,11 @@ handle_info({timeout, _Ref, renew_master}, #state{ballot_num=Ballot}=State) ->
             check_master_start_scout(State)
     end,
     {noreply, NewState};
+% One of the monitored nodes is down. Remove it from list of valid members
+handle_info({'DOWN', _MonitorRef, process, {?LEADER, Node}, Info}, State) ->
+    ?LINFO("Detected ~p down::~p", [Node, Info]),
+    consensus_rcfg:node_down(Node),
+    {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -345,8 +374,10 @@ check_master_start_scout(#state{ballot_num=Ballot,
                     create_timer(OldTimerRef, master_check,
                                  LeaseTime, ?SELF, spawn_scout);
                 {_, true} ->
-                    ?LWARNING("Master failed to renew lease"),
-                    OldTimerRef
+                    ?LERROR("Master failed to renew lease::~p time left", [LeaseTime]),
+                    % This case occurs when n/w is down or master is in the
+                    % smaller partition. Stop the application
+                    consensus_util:stop_app()
             end;
         % Not a valid member, try after some time
         % TODO: Calibrate this time
@@ -367,3 +398,9 @@ check_master_start_commander(NewPValue) ->
         false ->
             ok
     end.
+
+monitor_members() ->
+    Members = consensus_state:get_members() -- [?SELF_NODE],
+    lists:foreach(fun(Member) ->
+                      erlang:monitor(process, {?LEADER, Member})
+                  end, Members).

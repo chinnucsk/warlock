@@ -7,6 +7,10 @@
 %%% @doc Records and macros for consensus app
 %%% @end
 %%%-------------------------------------------------------------------
+
+%% Consensus application name
+-define(APPLICATION, consensus).
+
 %% rop = Reconfiguration operation
 -record(rop, {
           %% Type of operation determine what has to be done

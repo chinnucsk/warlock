@@ -99,7 +99,6 @@ handle_cast({p1a, {Leader, LBallot}}, #state{hash_table=HT,
             CurrBallot
     end,
     NewState = State#state{ballot_num = Ballot},
-    % Response = {p1b, self(), ballot_num, accepted} /From paper
     Response = {p1b, {?SELF, Ballot, HT:to_list(Accepted)}},
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
@@ -114,7 +113,18 @@ handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
               consensus_rcfg:is_slot(Slot)} of
         % Rcfg requests only, we don't store this slot
         {true, true} ->
-            {Accepted, LBallot};
+            % Check if the request is coming from a node which is down
+            Node = erlang:node(Leader),
+            case consensus_state:get_node_status(Node) of
+                valid ->
+                    {Accepted, LBallot};
+                down ->
+                    ?ASYNC_MSG(down_leaders, stop_out_of_sync),
+                    {Accepted, CurrBallot};
+                _ ->
+                    ?LINFO("Bug: Non valid node sent p2a"),
+                    {Accepted, CurrBallot}
+            end;
         % Other slots
         {true, false} ->
             {HT:set(Slot, {LBallot, Proposal}, Accepted), LBallot};
@@ -123,7 +133,6 @@ handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
             {Accepted, CurrBallot}
         end,
     NewState = State#state{ballot_num = Ballot, accepted=Accepted1},
-    % Response = {p2b, self(); ballot num} /From paper
     Response = {p2b, {?SELF, Ballot}},
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};

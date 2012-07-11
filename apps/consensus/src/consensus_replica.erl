@@ -116,15 +116,28 @@ handle_cast({request, #rop{type=Type}=Proposal}, State) ->
     Message = {propose_rcfg, {Slot, Proposal}},
     ?ASYNC_MSG(?LEADER, Message),
     {noreply, State};
-
 % Handle reconfiguration decision
 handle_cast({decision_rcfg, Proposal}, State) ->
     ?LDEBUG("REP ~p::Received message ~p", [self(),
                                             {decision_rcfg, Proposal}]),
 
-    %% Decision is for reconfiguration. Bypass rest of the logic and execute
-    %% We also don't cleanup this slot since we don't store it anywhere
-    ?CLIENT:exec(Proposal),
+    % Decision is for reconfiguration. Bypass rest of the logic and execute
+    % We also don't cleanup this slot since we don't store it
+
+    % Check if the request is coming from a node which is down, if election req
+    case consensus_rcfg:get_election_node(Proposal) of
+        false ->
+            ?CLIENT:exec(Proposal);
+        Node when is_atom(Node) ->
+            case consensus_state:get_node_status(Node) of
+                valid ->
+                    ?CLIENT:exec(Proposal);
+                down ->
+                    ?LINFO("Ignoring decision from \"down\" node");
+                _ ->
+                    ?LINFO("Bug: Decision sent from non member node")
+            end
+    end,
     {noreply, State};
 % Handle leader's decision
 handle_cast({decision, {Slot, Proposal}},

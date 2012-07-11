@@ -46,7 +46,12 @@ async(Target, Msg) when
 async(Target, Msg) ->
     {Name, Nodes} = get_add(Target),
     ?LDEBUG("MSG {TARGET, NODES, Msg}:: {~p, ~p, ~p}", [Name, Nodes, Msg]),
-    gen_server:abcast(Nodes, Name, Msg).
+    case Nodes of
+        [] ->
+            ok;
+        _ ->
+            gen_server:abcast(Nodes, Name, Msg)
+    end.
 
 %% ------------------------------------------------------------------
 %% Internal function
@@ -73,5 +78,9 @@ get_add(Target) ->
         % Replicas on valid set of nodes
         replicas ->
             Replicas = consensus_state:get_members(),
-            {?REPLICA, Replicas}
+            {?REPLICA, Replicas};
+        % Leaders on set of down nodes
+        down_leaders ->
+            Leaders = consensus_state:get_nodes(down),
+            {?LEADER, Leaders}
     end.

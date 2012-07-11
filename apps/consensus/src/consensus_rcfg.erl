@@ -21,10 +21,11 @@
          join/1, leave/0, add_repl_member/2,
          remove_member/1, replace_member/2,
          % Functions to be used within the consensus app
-         set_master/1,
+         set_master/1, node_down/1,
          get_slot/1, is_slot/1,
          callback/1,
-         cluster_add_node/2
+         cluster_add_node/2,
+         get_election_node/1
         ]).
 
 %% -----------------------------------------------------------------
@@ -76,14 +77,30 @@ replace_member(SeedNode, TargetNode) ->
 set_master(Ballot) ->
     consensus_client:propose_rcfg(get_election_op(Ballot)).
 
+%% Move a node from status "valid" to "down"
+-spec node_down(node()) -> ok.
+node_down(Node) ->
+    consensus_client:propose_rcfg(get_node_down_op(Node)).
+
 %% Callback functions to change system config
 -spec callback(#rop{}) -> ok.
 callback(#rop{type=election,
               data={Node, Lease, Ballot}}) ->
+    OldMaster = case consensus_state:get_master() of
+        [] ->
+            undefined;
+        [OldNode] ->
+            OldNode
+    end,
+
     consensus_state:set_master(Node, Lease),
+
+    % If master, send a message to create timer for renewing the lease
     case Node =:= ?SELF_NODE of
         true ->
-            ?ASYNC_MSG(?LEADER, {master_adopted, Ballot});
+            ?ASYNC_MSG(?LEADER, {master_adopted, Ballot, OldMaster}),
+            % Send a message to "down" nodes to shutdown, in case they are back
+            ?ASYNC_MSG(down_leaders, stop_out_of_sync);
         false ->
             ok
     end;
@@ -95,7 +112,8 @@ callback(#rop{type=join,
     case consensus_state:is_master() of
         true ->
             rpc:call(Node,
-                     consensus_rcfg, cluster_add_node, [Node, ClusterDelta]);
+                     consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
+            ?LEADER:monitor(Node);
         false ->
             ok
     end;
@@ -130,10 +148,14 @@ callback(#rop{type=repl_join,
     case IsMaster of
         true ->
             rpc:call(Node,
-                     consensus_rcfg, cluster_add_node, [Node, ClusterDelta]);
+                     consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
+            ?LEADER:monitor(Node);
         false ->
             ok
-    end.
+    end;
+callback(#rop{type=node_down, data=Node}) ->
+    consensus_state:set_node_status(Node, down).
+
 
 %% Addition of new node to the cluster - update local state
 -spec cluster_add_node(node(), integer()) -> integer().
@@ -149,13 +171,22 @@ get_slot(election) ->
 get_slot(join) ->
     b;
 get_slot(repl_join) ->
-    c.
+    c;
+get_slot(node_down) ->
+    d.
 
 %% Check if given slot is a rcfg slot
 -spec is_slot(slot()) -> boolean().
 is_slot(Slot) when is_atom(Slot) ->
     true;
 is_slot(Slot) when is_integer(Slot) ->
+    false.
+
+%% Return node of if given proposal is for election
+-spec get_election_node(#rop{}) -> node() | false.
+get_election_node(#rop{type=election, data={Node, _, _}}) ->
+    Node;
+get_election_node(_) ->
     false.
 
 %% ------------------------------------------------------------------
@@ -175,6 +206,10 @@ get_join_op(ClusterDelta) ->
 get_repl_op(SourceNode, ClusterDelta, Callback) ->
     #rop{type=repl_join,
          data={SourceNode, ?SELF_NODE, ClusterDelta, Callback}}.
+
+get_node_down_op(Node) ->
+    #rop{type=node_down,
+         data=Node}.
 
 % Pull cluster state and sync self
 sync_with_cluster(SeedNode) ->

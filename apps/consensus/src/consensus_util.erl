@@ -22,7 +22,8 @@
          incr_ballot/2, incr_view/1,
          ballot_equal/2, ballot_same/2,
          is_majority/1,
-         get_lease/0]).
+         get_lease/0,
+         stop_app/0]).
 
 -include_lib("util/include/common.hrl").
 -include("consensus.hrl").
@@ -90,3 +91,8 @@ is_majority(VoteCount) ->
 -spec get_lease() -> tuple().
 get_lease() ->
     {now(), ?LEASE_TIME}.
+
+% Stop the consensus application
+-spec stop_app() -> ok.
+stop_app() ->
+    application:stop(?APPLICATION).
