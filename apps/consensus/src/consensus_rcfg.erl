@@ -113,6 +113,9 @@ callback(#rop{type=join,
               data={Node, ClusterDelta}}) ->
     % Add the node as a valid member, update cluster size
     cluster_add_node(Node, ClusterDelta),
+
+    %TODO: Master can demonitor "Node" here for a cleaner implementation
+
     % If master, activate the new member
     case consensus_state:is_master() of
         true ->
@@ -160,8 +163,9 @@ callback(#rop{type=repl_join,
     end;
 callback(#rop{type=node_down, data=Node}) ->
     consensus_state:set_node_status(Node, down);
-callback(#rop{type=leave_cluster, data=Node}) ->
+callback(#rop{type=leave_cluster, data={Node, ClusterDelta}}) ->
     consensus_state:remove_node(Node),
+    consensus_state:set_cluster_delta(ClusterDelta),
 
     case Node =:= ?SELF_NODE of
         true ->
@@ -228,7 +232,7 @@ get_node_down_op(Node) ->
 
 get_leave_cluster_op() ->
     #rop{type=leave_cluster,
-         data=?SELF_NODE}.
+         data={?SELF_NODE, -1}}.
 
 % Pull cluster state and sync self
 sync_with_cluster(SeedNode) ->
