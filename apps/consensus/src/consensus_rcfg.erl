@@ -18,14 +18,15 @@
 %% Public interface
 %% -----------------------------------------------------------------
 -export([% Functions to be used by external apps
-         join/1, leave/0, add_repl_member/2,
-         remove_member/1, replace_member/2,
+         join/1, add_repl_member/2,
+         leave/0, remove/1, replace_member/2,
          % Functions to be used within the consensus app
          set_master/1, node_down/1,
          get_slot/1, is_slot/1,
          callback/1,
          cluster_add_node/2,
-         get_election_node/1
+         get_election_node/1,
+         transfer_master/0, transfer_master/1
         ]).
 
 %% -----------------------------------------------------------------
@@ -53,15 +54,16 @@ add_repl_member(SourceNode, Callback) ->
 
 %% A member of the cluster tries to leave
 %% Size of the cluster decreases
+-spec leave() -> ok.
 leave() ->
-    consensus_client:propose_rcfg(get_leave_cluster_op()).
+    remove(?SELF_NODE).
 
-%FIXME
 %% Forcefully remove a member
-%% TODO: Do we need to export this option?
-%% Size of the cluster remains same
-remove_member(Node) ->
-    Node.
+%% Size of the cluster decreases
+-spec remove(node()) -> ok.
+remove(Node) ->
+    %TODO: For removing master node, transfer it first and then remove
+    consensus_client:propose_rcfg(remove_op(Node)).
 
 %FIXME
 %% Replace an existing member in the cluster
@@ -69,18 +71,32 @@ remove_member(Node) ->
 replace_member(SeedNode, TargetNode) ->
     {SeedNode, TargetNode}.
 
+-spec transfer_master() -> ok.
+transfer_master() ->
+    transfer_master(get_non_master_member()).
+
+-spec transfer_master(node()) -> ok.
+transfer_master(Node) ->
+    case consensus_state:get_master() of
+        [Node] ->
+            {error, cannot_transfer_to_master};
+        _ ->
+            consensus_client:propose_rcfg(transfer_master_op(Node))
+    end.
+
+
 %% -----------------------------------------------------------------
 %% Public functions, internal to the application
 %% -----------------------------------------------------------------
 %% Start a rcfg round to set the current node as master
 -spec set_master(ballot()) -> ok.
 set_master(Ballot) ->
-    consensus_client:propose_rcfg(get_election_op(Ballot)).
+    consensus_client:propose_rcfg(election_op(Ballot)).
 
 %% Move a node from status "valid" to "down"
 -spec node_down(node()) -> ok.
 node_down(Node) ->
-    consensus_client:propose_rcfg(get_node_down_op(Node)).
+    consensus_client:propose_rcfg(node_down_op(Node)).
 
 %% Callback functions to change system config
 -spec callback(#rop{}) -> ok.
@@ -121,7 +137,7 @@ callback(#rop{type=join,
         true ->
             rpc:call(Node,
                      consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
-            ?LEADER:monitor(Node);
+            ?ASYNC_MSG(?LEADER, {monitor, Node});
         false ->
             ok
     end;
@@ -137,12 +153,7 @@ callback(#rop{type=repl_join,
     cluster_add_node(Node, ClusterDelta),
 
     % Reset all the consensus actors' state and increment "view"
-    case IsMaster of
-        true -> ?LEADER:incr_view();
-        false -> ?LEADER:reset()
-    end,
-    ?REPLICA:reset(),
-    ?ACCEPTOR:reset(),
+    reset_cons_state(IsMaster),
 
     % If source node, inform execute callback
     case SourceNode =:= ?SELF_NODE of
@@ -157,22 +168,43 @@ callback(#rop{type=repl_join,
         true ->
             rpc:call(Node,
                      consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
-            ?LEADER:monitor(Node);
+            ?ASYNC_MSG(?LEADER, {monitor, Node});
         false ->
             ok
     end;
 callback(#rop{type=node_down, data=Node}) ->
     consensus_state:set_node_status(Node, down);
-callback(#rop{type=leave_cluster, data={Node, ClusterDelta}}) ->
+callback(#rop{type=remove, data={Node, ClusterDelta}}) ->
+    IsMaster = consensus_state:is_master(),
+
+    % Remove the given node from state
     consensus_state:remove_node(Node),
     consensus_state:set_cluster_delta(ClusterDelta),
+
+    reset_cons_state(IsMaster),
 
     case Node =:= ?SELF_NODE of
         true ->
             consensus_util:stop_app();
         false ->
             ok
+    end;
+callback(#rop{type=transfer_master, data=Node}) ->
+    IsMaster = consensus_state:is_master(),
+    IsNewMaster = Node =:= ?SELF_NODE,
+
+    % If master, make it a normal member
+    case {IsMaster, IsNewMaster} of
+        {true, false} ->
+            ?ASYNC_MSG(?LEADER, disable_master);
+        {false, true} ->
+            ?ASYNC_MSG(?LEADER, start_election);
+        {true, true} ->
+            ?LINFO("Possible bug: Cannot transfer, already master");
+        {false, false} ->
+            ?ASYNC_MSG(?LEADER, delay_election)
     end.
+
 
 %% Addition of new node to the cluster - update local state
 -spec cluster_add_node(node(), integer()) -> integer().
@@ -191,8 +223,10 @@ get_slot(repl_join) ->
     c;
 get_slot(node_down) ->
     d;
-get_slot(leave_cluster) ->
-    e.
+get_slot(remove) ->
+    e;
+get_slot(transfer_master) ->
+    f.
 
 %% Check if given slot is a rcfg slot
 -spec is_slot(slot()) -> boolean().
@@ -212,27 +246,31 @@ get_election_node(_) ->
 %% Internal functions
 %% ------------------------------------------------------------------
 %% Generate reconfig operations
-get_election_op(Ballot) ->
+election_op(Ballot) ->
     #rop{type=election,
          data={?SELF_NODE, consensus_util:get_lease(), Ballot}
         }.
 
-get_join_op(ClusterDelta) ->
+join_op(ClusterDelta) ->
     #rop{type=join,
          data={?SELF_NODE, ClusterDelta}
         }.
 
-get_repl_op(SourceNode, ClusterDelta, Callback) ->
+repl_op(SourceNode, ClusterDelta, Callback) ->
     #rop{type=repl_join,
          data={SourceNode, ?SELF_NODE, ClusterDelta, Callback}}.
 
-get_node_down_op(Node) ->
+node_down_op(Node) ->
     #rop{type=node_down,
          data=Node}.
 
-get_leave_cluster_op() ->
-    #rop{type=leave_cluster,
-         data={?SELF_NODE, -1}}.
+remove_op(Node) ->
+    #rop{type=remove,
+         data={Node, -1}}.
+
+transfer_master_op(Node) ->
+    #rop{type=transfer_master,
+         data=Node}.
 
 % Pull cluster state and sync self
 sync_with_cluster(SeedNode) ->
@@ -258,11 +296,28 @@ add_member(Type, Node, ClusterDelta, Callback) ->
     disable_local_leader(),
     Operation = case Type of
         empty ->
-            get_join_op(ClusterDelta);
+            join_op(ClusterDelta);
         repl ->
-            get_repl_op(Node, ClusterDelta, Callback)
+            repl_op(Node, ClusterDelta, Callback)
     end,
     % Ask cluster to start consensus to add self
     % This increases the cluster size as per ClusterDelta
     % This works since we have the set of replicas in our local state
     consensus_client:propose_rcfg(Operation).
+
+% Increment the view in the master leader ballot and reset state
+% This is used whenever there is a change to the cluster configuration
+% This helps ignore messages, decisions from previous cluster config
+reset_cons_state(IsMaster) ->
+    case IsMaster of
+        true -> ?ASYNC_MSG(?LEADER, incr_view);
+        false -> ?ASYNC_MSG(?LEADER, reset)
+    end,
+    ?ASYNC_MSG(?REPLICA, reset),
+    ?ASYNC_MSG(?ACCEPTOR, reset).
+
+% Returns the first available member that is not the master
+get_non_master_member() ->
+    AllMembers = consensus_state:get_members(),
+    Master = consensus_state:get_master(),
+    hd(AllMembers -- Master).

@@ -20,7 +20,7 @@
 %% ------------------------------------------------------------------
 %% API Function Exports
 %% ------------------------------------------------------------------
--export([start_link/0, reset/0]).
+-export([start_link/0]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -63,10 +63,6 @@
 -spec start_link() -> {error, _} | {ok, pid()}.
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
-
--spec reset() -> ok.
-reset() ->
-    gen_server:cast(?MODULE, reset).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions

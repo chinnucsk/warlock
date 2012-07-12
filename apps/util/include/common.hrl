@@ -15,11 +15,6 @@
 
 -define(APP, dlock).
 
-%% Macro for debugging code
--ifndef(PRINT).
--define(PRINT(Var), io:format("DEBUG: ~p:~p - ~p~n~n ~p~n~n", [?MODULE, ?LINE, ??Var, Var])).
--endif.
-
 %% Macro for timing code sections
 %% Usage
 %% ?TIMEON,
@@ -27,7 +22,6 @@
 %% ...some code...
 %%
 %% ?TIMEOFF(my_code_block).
-
 -ifndef(TIMEON).
 % Yes, these need to be on a single line to work...
 -define(TIMEON, erlang:put(debug_timer, [now()|case erlang:get(debug_timer) == undefined of true -> []; false -> erlang:get(debug_timer) end])).

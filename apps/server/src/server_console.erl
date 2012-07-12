@@ -19,7 +19,7 @@
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([join/1, repl/1, leave/1]).
+-export([join/1, repl/1, leave/1, remove/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -64,8 +64,24 @@ repl([NodeStr]) ->
 %% @doc
 %% Current node tries to leaves the cluster
 %%-------------------------------------------------------------------
+-spec leave([]) -> ok.
 leave([]) ->
     consensus:rcfg_leave().
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Remove given member from the cluster
+%%-------------------------------------------------------------------
+-spec remove([string()]) -> ok | {error, not_reachable}.
+remove([NodeStr]) ->
+    Node = str_to_node(NodeStr),
+    %% Connect to the node
+    case net_adm:ping(Node) of
+        pang ->
+            {error, not_reachable};
+        pong ->
+            consensus:rcfg_remove(Node)
+    end.
 
 %% ------------------------------------------------------------------
 %% Internal Function Definitions

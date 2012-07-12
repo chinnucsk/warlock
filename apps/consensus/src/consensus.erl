@@ -19,7 +19,8 @@
 %% ------------------------------------------------------------------
 -export([ping/0,
          propose/1,
-         rcfg_join/1, add_repl_member/2, rcfg_leave/0,
+         rcfg_join/1, add_repl_member/2,
+         rcfg_leave/0, rcfg_remove/1,
          get_sync_member/0]).
 
 -include_lib("util/include/common.hrl").
@@ -72,3 +73,7 @@ get_sync_member() ->
 %% Try and leave the cluster
 rcfg_leave() ->
     consensus_rcfg:leave().
+
+%% Forcefully remove a node from the cluster
+rcfg_remove(Node) ->
+    consensus_rcfg:remove(Node).

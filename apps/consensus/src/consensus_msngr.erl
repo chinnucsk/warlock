@@ -82,5 +82,8 @@ get_add(Target) ->
         % Leaders on set of down nodes
         down_leaders ->
             Leaders = consensus_state:get_nodes(down),
-            {?LEADER, Leaders}
+            {?LEADER, Leaders};
+        % General case where registered name/pid and node is specified
+        {Name, Node} ->
+            {Name, Node}
     end.
