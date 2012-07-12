@@ -46,15 +46,15 @@ join(SeedNode) ->
     add_member(empty, SeedNode, 1, undefined).
 
 %% Add a new member via replication
+%% This increases the cluster size
 -spec add_repl_member(node(), term()) -> ok.
 add_repl_member(SourceNode, Callback) ->
     add_member(repl, SourceNode, 1, Callback).
 
-%FIXME
 %% A member of the cluster tries to leave
 %% Size of the cluster decreases
 leave() ->
-    ok.
+    consensus_client:propose_rcfg(get_leave_cluster_op()).
 
 %FIXME
 %% Forcefully remove a member
@@ -159,8 +159,16 @@ callback(#rop{type=repl_join,
             ok
     end;
 callback(#rop{type=node_down, data=Node}) ->
-    consensus_state:set_node_status(Node, down).
+    consensus_state:set_node_status(Node, down);
+callback(#rop{type=leave_cluster, data=Node}) ->
+    consensus_state:remove_node(Node),
 
+    case Node =:= ?SELF_NODE of
+        true ->
+            consensus_util:stop_app();
+        false ->
+            ok
+    end.
 
 %% Addition of new node to the cluster - update local state
 -spec cluster_add_node(node(), integer()) -> integer().
@@ -178,7 +186,9 @@ get_slot(join) ->
 get_slot(repl_join) ->
     c;
 get_slot(node_down) ->
-    d.
+    d;
+get_slot(leave_cluster) ->
+    e.
 
 %% Check if given slot is a rcfg slot
 -spec is_slot(slot()) -> boolean().
@@ -215,6 +225,10 @@ get_repl_op(SourceNode, ClusterDelta, Callback) ->
 get_node_down_op(Node) ->
     #rop{type=node_down,
          data=Node}.
+
+get_leave_cluster_op() ->
+    #rop{type=leave_cluster,
+         data=?SELF_NODE}.
 
 % Pull cluster state and sync self
 sync_with_cluster(SeedNode) ->

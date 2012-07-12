@@ -19,7 +19,7 @@
 %% ------------------------------------------------------------------
 -export([ping/0,
          propose/1,
-         rcfg_join/1, add_repl_member/2,
+         rcfg_join/1, add_repl_member/2, rcfg_leave/0,
          get_sync_member/0]).
 
 -include_lib("util/include/common.hrl").
@@ -68,3 +68,7 @@ get_sync_member() ->
         _ ->
             hd(AllMembers -- Master)
     end.
+
+%% Try and leave the cluster
+rcfg_leave() ->
+    consensus_rcfg:leave().

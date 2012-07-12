@@ -19,6 +19,7 @@
 %% ------------------------------------------------------------------
 -export([new/0, del/0,
          set_node_status/1, set_node_status/2, get_node_status/1,
+         remove_node/1,
          get_nodes/0, get_nodes/1, get_members/0,
          get_master/0, get_valid_master/0, is_master/0,
          set_master/2,
@@ -111,7 +112,7 @@ get_node_status(Node) ->
     case lists:keyfind(Node, 1, get_state(c_status)) of
         {Node, Status} ->
             Status;
-        _ ->
+        false ->
             undefined
     end.
 
@@ -134,6 +135,11 @@ set_node_status(Node, Status) when
         OldStatus ->
             update_node(Node, OldStatus, Status)
     end.
+
+-spec remove_node(node()) -> true.
+remove_node(Node) ->
+    Status = get_node_status(Node),
+    remove_node(Node, Status).
 
 %% Get all nodes
 -spec get_nodes() -> [node()|list()].
@@ -239,6 +245,13 @@ update_node(Node, OldStatus, NewStatus) ->
     set_state(OldStatus, get_state(OldStatus) -- [Node]),
     % Update list based in NewStatus
     set_state(NewStatus, get_state(NewStatus) ++ [Node]).
+
+remove_node(Node, Status) ->
+    % Remove from main nodes list
+    set_state(c_status, lists:delete({Node, Status},get_state(c_status))),
+
+    % Remove from relevant list
+    set_state(Status, get_state(Status) -- [Node]).
 
 now_add ({ Mega, Sec, Micro }, Add) ->
   proper ({ Mega, Sec, Micro + Add }).

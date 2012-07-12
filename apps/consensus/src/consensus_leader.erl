@@ -292,7 +292,14 @@ handle_info({timeout, _Ref, renew_master}, #state{ballot_num=Ballot}=State) ->
 % One of the monitored nodes is down. Remove it from list of valid members
 handle_info({'DOWN', _MonitorRef, process, {?LEADER, Node}, Info}, State) ->
     ?LINFO("Detected ~p down::~p", [Node, Info]),
-    consensus_rcfg:node_down(Node),
+
+    % We ignore 'DOWN' messages from members that leave the cluster
+    case consensus_state:get_node_status(Node) of
+        undefined ->
+            ok;
+        {Node, _Status} ->
+            consensus_rcfg:node_down(Node)
+    end,
     {noreply, State};
 handle_info(_Info, State) ->
     {noreply, State}.

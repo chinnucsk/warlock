@@ -101,12 +101,21 @@ case "$1" in
         ;;
 
     leave)
-        if [ $# -ne 2 ]; then
-            echo "Usage: $SCRIPT leave <node>"
+        if [ $# -ne 1 ]; then
+            echo "Usage: $SCRIPT leave"
             exit 1
         fi
         ensure_node_running
-        $NODETOOL rpc server_console leave "$2"
+        $NODETOOL rpc server_console leave
+        ;;
+
+    repl)
+        if [ $# -ne 2 ]; then
+            echo "Usage: $SCRIPT repl <node>"
+            exit 1
+        fi
+        ensure_node_running
+        $NODETOOL rpc server_console repl "$2"
         ;;
 
     status)
