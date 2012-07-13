@@ -97,7 +97,11 @@ handle_call(_Request, _From, State) ->
 handle_cast({request, #dop{type=?LOCAL}=Proposal}, State) ->
     ?LDEBUG("REP ~p::Received read message ~p", [self(), {request, Proposal}]),
     % Execute the decision directly
-    ?CLIENT:exec(Proposal),
+    try ?CLIENT:exec(Proposal)
+    catch
+        Error:Reason ->
+            {error, {Error, Reason}}
+    end,
     {noreply, State};
 % WRITE/Other request sent from client
 handle_cast({request, #dop{}=Proposal}, State) ->
