@@ -63,7 +63,13 @@ leave() ->
 -spec remove(node()) -> ok.
 remove(Node) ->
     %TODO: For removing master node, transfer it first and then remove
-    consensus_client:propose_rcfg(remove_op(Node)).
+    % for now, let user handle it manually
+    case consensus_state:get_master() =:= [Node] of
+        true ->
+            {error, master_removal};
+        false ->
+            consensus_client:propose_rcfg(remove_op(Node))
+    end.
 
 %FIXME
 %% Replace an existing member in the cluster
