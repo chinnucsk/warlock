@@ -19,14 +19,15 @@
 %% -----------------------------------------------------------------
 -export([% Functions to be used by external apps
          join/1, add_repl_member/2,
-         leave/0, remove/1, replace_member/2,
+         leave/0, remove/1,
          % Functions to be used within the consensus app
          set_master/1, node_down/1,
          get_slot/1, is_slot/1,
          callback/1,
          cluster_add_node/2,
          get_election_node/1,
-         transfer_master/0, transfer_master/1
+         transfer_master/0, transfer_master/1,
+         get_sync_member/0
         ]).
 
 %% -----------------------------------------------------------------
@@ -68,18 +69,12 @@ remove(Node) ->
         true ->
             {error, master_removal};
         false ->
-            consensus_client:propose_rcfg(remove_op(Node))
+            consensus_client:sync_propose_rcfg(remove_op(Node))
     end.
-
-%FIXME
-%% Replace an existing member in the cluster
-%% Size of the cluster remains same
-replace_member(SeedNode, TargetNode) ->
-    {SeedNode, TargetNode}.
 
 -spec transfer_master() -> ok.
 transfer_master() ->
-    transfer_master(get_non_master_member()).
+    transfer_master(get_sync_member()).
 
 -spec transfer_master(node()) -> ok.
 transfer_master(Node) ->
@@ -87,7 +82,7 @@ transfer_master(Node) ->
         [Node] ->
             {error, cannot_transfer_to_master};
         _ ->
-            consensus_client:propose_rcfg(transfer_master_op(Node))
+            consensus_client:sync_propose_rcfg(transfer_master_op(Node))
     end.
 
 
@@ -143,7 +138,8 @@ callback(#rop{type=join,
         true ->
             rpc:call(Node,
                      consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
-            ?ASYNC_MSG(?LEADER, {monitor, Node});
+            ?ASYNC_MSG(?LEADER, {monitor, Node}),
+            ?ASYNC_MSG({?LEADER, Node}, delay_election);
         false ->
             ok
     end;
@@ -174,6 +170,7 @@ callback(#rop{type=repl_join,
         true ->
             rpc:call(Node,
                      consensus_rcfg, cluster_add_node, [Node, ClusterDelta]),
+            ?ASYNC_MSG({?LEADER, Node}, delay_election),
             ?ASYNC_MSG(?LEADER, {monitor, Node});
         false ->
             ok
@@ -188,10 +185,16 @@ callback(#rop{type=remove, data={Node, ClusterDelta}}) ->
     consensus_state:set_cluster_delta(ClusterDelta),
 
     reset_cons_state(IsMaster),
+    case IsMaster of
+        true ->
+            ?ASYNC_MSG(?LEADER, {demonitor, Node});
+        false ->
+            ok
+    end,
 
     case Node =:= ?SELF_NODE of
         true ->
-            consensus_util:stop_app();
+            ?ASYNC_MSG(?LEADER, stop_out_of_sync);
         false ->
             ok
     end;
@@ -322,8 +325,16 @@ reset_cons_state(IsMaster) ->
     ?ASYNC_MSG(?REPLICA, reset),
     ?ASYNC_MSG(?ACCEPTOR, reset).
 
-% Returns the first available member that is not the master
-get_non_master_member() ->
+%% Get a member that is in sync with the cluster
+%% Try to make sure that the return member is not the master
+% TODO: Implement priority list to keep track of "good" members?
+-spec get_sync_member() -> node().
+get_sync_member() ->
     AllMembers = consensus_state:get_members(),
     Master = consensus_state:get_master(),
-    hd(AllMembers -- Master).
+    case AllMembers of
+        Master ->
+            hd(Master);
+        _ ->
+            hd(AllMembers -- Master)
+    end.

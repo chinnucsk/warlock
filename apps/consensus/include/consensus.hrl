@@ -17,7 +17,10 @@
           type,
 
           %% Has data about the request
-          data
+          data,
+
+          %% {Client-PID, Client-Cmd-Ref}
+          client=undefined
 }).
 
 %% Types in consensus app

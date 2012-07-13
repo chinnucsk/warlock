@@ -57,23 +57,17 @@ add_repl_member(SourceNode, Callback) ->
     consensus_rcfg:add_repl_member(SourceNode, Callback).
 
 %% Get a member that is in sync with the cluster
-%% Try to make sure that the return member is not the master
-% TODO: Implement priority list to keep track of "good" members?
+%% It tries to make sure that the return member is not the master
 -spec get_sync_member() -> node().
 get_sync_member() ->
-    AllMembers = consensus_state:get_members(),
-    Master = consensus_state:get_master(),
-    case AllMembers of
-        Master ->
-            hd(Master);
-        _ ->
-            hd(AllMembers -- Master)
-    end.
+    consensus_rcfg:get_sync_member().
 
 %% Try and leave the cluster
+-spec rcfg_leave() -> ok.
 rcfg_leave() ->
     consensus_rcfg:leave().
 
 %% Forcefully remove a node from the cluster
+-spec rcfg_remove(node()) -> ok.
 rcfg_remove(Node) ->
     consensus_rcfg:remove(Node).

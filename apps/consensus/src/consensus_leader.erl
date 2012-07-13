@@ -174,7 +174,7 @@ handle_cast({adopted, {CurrBallot, PValues}},
 %% this leader as their master
 handle_cast({master_adopted, CurrBallot, OldMaster},
             #state{hash_table=HT, timer_ref=OldTimerRef, proposals = Proposals,
-                   ballot_num = CurrBallot} = State) ->
+                   ballot_num = CurrBallot, monitors=Monitors} = State) ->
     ?LDEBUG("LEA ~p::Received message ~p", [self(),
                                             {master_adopted, CurrBallot}]),
 
@@ -183,7 +183,7 @@ handle_cast({master_adopted, CurrBallot, OldMaster},
                             ?RENEW_LEASE_TIME, ?SELF, renew_master),
 
     % If new master: mark old master down, monitor all members
-    Monitors = case {OldMaster /= ?SELF_NODE, OldMaster /= undefined} of
+    NewMonitors = case {OldMaster /= ?SELF_NODE, OldMaster /= undefined} of
         {true, true} ->
             %TODO: Check if below code is necessary
             %consensus_rcfg:node_down(OldMaster),
@@ -191,13 +191,13 @@ handle_cast({master_adopted, CurrBallot, OldMaster},
         {true, false} ->
             monitor_members();
         {false, _} ->
-            []
+            Monitors
     end,
 
     % Spawn a commander for every proposal
     Proposals1 = spawn_commanders(HT, CurrBallot, Proposals),
     {noreply, State#state{active=true,
-                          monitors=Monitors,
+                          monitors=NewMonitors,
                           timer_ref=TimerRef,
                           proposals=Proposals1}};
 %% preempted message sent by either a scout or a commander, it means that some
@@ -258,8 +258,19 @@ handle_cast({monitor, Node}, #state{monitors=Monitors}=State) ->
     MRef = erlang:monitor(process, {?LEADER, Node}),
     NewMonitors = [{Node, MRef} | Monitors],
     {noreply, State#state{monitors=NewMonitors}};
+%% De-monitor a node being removed from the cluster
+handle_cast({demonitor, Node}, #state{monitors=Monitors}=State) ->
+    NewMonitors = case proplists:lookup(Node, Monitors) of
+        none ->
+            Monitors;
+        {Node, MRef} ->
+            erlang:demonitor(MRef),
+            proplists:delete(Node, Monitors)
+    end,
+    {noreply, State#state{monitors=NewMonitors}};
 %% Got a shutdown signal because the cluster has marked it as down
-handle_cast(stop_out_of_sync, State) ->
+handle_cast(stop_out_of_sync, #state{timer_ref={_Status, TRef}}=State) ->
+    stop_timer(TRef),
     consensus_util:stop_app(),
     {noreply, State};
 %% Disables all monitors and removes lease renewal timer
@@ -306,7 +317,7 @@ handle_info({timeout, _Ref, renew_master}, #state{ballot_num=Ballot}=State) ->
     end,
     {noreply, NewState};
 % One of the monitored nodes is down. Remove it from list of valid members
-handle_info({'DOWN', MonitorRef, process, {?LEADER, Node}, Info},
+handle_info({'DOWN', _MonitorRef, process, {?LEADER, Node}, Info},
             #state{monitors=Monitors}=State) ->
     ?LINFO("Detected ~p down::~p", [Node, Info]),
 
@@ -317,7 +328,7 @@ handle_info({'DOWN', MonitorRef, process, {?LEADER, Node}, Info},
         _Status ->
             consensus_rcfg:node_down(Node)
     end,
-    NewMonitors = Monitors -- [{Node, MonitorRef}],
+    NewMonitors = proplists:delete(Node, Monitors),
     {noreply, State#state{monitors=NewMonitors}};
 handle_info(_Info, State) ->
     {noreply, State}.

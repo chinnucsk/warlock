@@ -19,7 +19,7 @@
 %% -----------------------------------------------------------------
 %% Public interface
 %% -----------------------------------------------------------------
--export([join/1, repl/1, leave/1, remove/1]).
+-export([join/1, repl/1, leave/1, remove/1, replace/1]).
 
 %% -----------------------------------------------------------------
 %% Private macros
@@ -81,6 +81,26 @@ remove([NodeStr]) ->
             {error, not_reachable};
         pong ->
             consensus:rcfg_remove(Node)
+    end.
+
+%%-------------------------------------------------------------------
+%% @doc
+%% Replace given member from the cluster using meta info from seed node
+%% Size of the cluster remains same
+%%-------------------------------------------------------------------
+-spec replace([string() | string()]) -> ok | {error, not_reachable}.
+replace([TargetNodeStr, SeedNodeStr]) ->
+    SeedNode = str_to_node(SeedNodeStr),
+    TargetNode = str_to_node(TargetNodeStr),
+    %% Connect to the node
+    case net_adm:ping(SeedNode) of
+        pang ->
+            {error, not_reachable};
+        pong ->
+            % Remove target node from the cluster
+            rpc:call(SeedNode, consensus, rcfg_remove, [TargetNode]),
+            % Replicate using seed node
+            server:repl(SeedNode)
     end.
 
 %% ------------------------------------------------------------------

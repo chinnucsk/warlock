@@ -85,5 +85,5 @@ get_add(Target) ->
             {?LEADER, Leaders};
         % General case where registered name/pid and node is specified
         {Name, Node} ->
-            {Name, Node}
+            {Name, [Node]}
     end.

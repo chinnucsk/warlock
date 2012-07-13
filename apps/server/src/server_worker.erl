@@ -88,7 +88,7 @@ handle_cast({response, TRef, Result}, #state{requests=Requests} = State) ->
     % Reply to the original caller
     case ets_ht:get(TRef, Requests) of
         not_found ->
-            ?LINFO("Error, req not found");
+            ?LINFO("SERW::Error, req not found");
         Caller ->
             gen_server:reply(Caller, Result),
             erlang:cancel_timer(TRef),

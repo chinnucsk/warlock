@@ -127,6 +127,15 @@ case "$1" in
         $NODETOOL rpc server_console remove "$2"
         ;;
 
+    replace)
+        if [ $# -ne 3 ]; then
+            echo "Usage: $SCRIPT replace <target-node> <seed-node>"
+            exit 1
+        fi
+        ensure_node_running
+        $NODETOOL rpc server_console replace "$2" "$3"
+        ;;
+
     status)
         if [ $# -ne 1 ]; then
             echo "Usage: $SCRIPT status"
@@ -162,7 +171,7 @@ case "$1" in
         ;;
 
     *)
-        echo "Usage: $SCRIPT { join | leave | remove| repl | member-status | status }"
+        echo "Usage: $SCRIPT { join | leave | remove| replace | repl | member-status | status }"
         exit 1
         ;;
 esac

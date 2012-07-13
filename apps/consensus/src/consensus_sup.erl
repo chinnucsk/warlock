@@ -64,6 +64,7 @@ init([]) ->
          ?CHILD(consensus_replica, transient, worker),
          ?CHILD(consensus_scout_sup, permanent, supervisor),
          ?CHILD(consensus_commander_sup, permanent, supervisor),
-         ?CHILD(consensus_leader, transient, worker)
+         ?CHILD(consensus_leader, transient, worker),
+         ?CHILD(consensus_client, permanent, worker)
          ]),
     {ok, {SupFlags, Children}}.
