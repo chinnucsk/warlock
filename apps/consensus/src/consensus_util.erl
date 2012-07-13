@@ -23,10 +23,12 @@
          ballot_equal/2, ballot_same/2,
          is_majority/1,
          get_lease/0,
-         stop_app/0]).
+         stop_app/0, stop_app/1]).
 
 -include_lib("util/include/common.hrl").
 -include("consensus.hrl").
+
+-define(STOP_TIME, 2000).
 
 % TODO: Create types for frequently used structures
 
@@ -70,7 +72,10 @@ ballot_greateq(BallotA, BallotB) ->
 %% Increment only allowed when second ballot is greater
 -spec incr_ballot(ballot(), ballot()) -> ballot().
 incr_ballot({ViewA, IntA, LeaderA}, {ViewB, IntB, _LeaderB})
-  when ViewB >= ViewA andalso IntB >= IntA ->
+  when ViewB =:= ViewA andalso IntB >= IntA ->
+    {ViewB, IntB + 1, LeaderA};
+incr_ballot({ViewA, _IntA, LeaderA}, {ViewB, IntB, _LeaderB})
+  when ViewB > ViewA ->
     {ViewB, IntB + 1, LeaderA}.
 
 %% View change reset ballot's incrementing id
@@ -92,7 +97,18 @@ is_majority(VoteCount) ->
 get_lease() ->
     {now(), ?LEASE_TIME}.
 
-% Stop the consensus application
+% Stop the consensus application after given time
 -spec stop_app() -> ok.
 stop_app() ->
-    application:stop(?APPLICATION).
+    stop_app(?STOP_TIME).
+
+-spec stop_app(integer()) -> ok.
+stop_app(Time) ->
+    spawn(fun()-> stop(Time) end).
+
+stop(Time) ->
+    receive
+    after
+        Time ->
+            application:stop(?APPLICATION)
+    end.
