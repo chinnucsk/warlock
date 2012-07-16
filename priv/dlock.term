@@ -49,11 +49,9 @@
  {int_hash_table, [
                    %% Implementation to be used
                    {ht, ets_ht},
-                   {bht, ets_bht},
 
                    %% Options
-                   {ht_options, [ets_ht]},
-                   {bht_options, [ets_bht]}
+                   {ht_options, [ets_ht]}
                   ]
  }
 ].

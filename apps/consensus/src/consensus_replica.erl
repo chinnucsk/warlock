@@ -47,12 +47,12 @@
 
             % A set of {slot number, command} pairs for proposals that the
             % replica has made in the past
-            % Implemented as a bidirectional hash table (BHT)
+            % Implemented as a bidirectional hash table (HT)
             proposals,
 
             % Another set of {slot number, command} pairs for decided slots
             % Implemented as a bidirectional hash table
-            % TODO: It is possible to use proposals BHT itself in combination
+            % TODO: It is possible to use proposals HT itself in combination
             % with slot_num for decisions. Optimize it.
             decisions
 }).
@@ -73,8 +73,8 @@ start_link() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
-    HT = util_conf:get(bht, int_hash_table),
-    Options = util_conf:get(bht_options, int_hash_table),
+    HT = util_conf:get(ht, int_hash_table),
+    Options = util_conf:get(ht_options, int_hash_table),
     {ok, #state{hash_table=HT,
                 proposals=HT:new(Options),
                 decisions=HT:new(Options)}}.
@@ -145,20 +145,16 @@ handle_cast({decision, {Slot, Proposal}},
     ?LDEBUG("REP ~p::Received message ~p", [self(),
                                             {decision, {Slot, Proposal}}]),
     % Add the decision to the set of decisions
+    % We do not check if the decision is a duplicate since we have one
+    % master leader sending them
 
-    % A safety check to see if this is a duplicate decision
-    case HT:valget(Proposal, Decisions) of
-        not_found ->
-            % Save the decision
-            Decisions1 = HT:set(Slot, Proposal, Decisions),
-            % Go through decisions and update state if needed
-            % TODO: check_decisions could take arbitrarily long time. Spawn
-            % helper process? Perhaps blocking is essential for algo. Check
-            NewState = check_decisions(State#state{decisions=Decisions1}),
-            {noreply, NewState};
-        _ ->
-            {noreply, State}
-    end;
+    % Save the decision
+    Decisions1 = HT:set(Slot, Proposal, Decisions),
+    % Go through decisions and update state if needed
+    % TODO: check_decisions could take arbitrarily long time. Spawn
+    % helper process? Perhaps blocking is essential for algo. Check
+    NewState = check_decisions(State#state{decisions=Decisions1}),
+    {noreply, NewState};
 handle_cast(reset, #state{hash_table=HT,
                           proposals=Proposals,
                           decisions = Decisions}) ->
@@ -195,23 +191,18 @@ code_change(_OldVsn, State, _Extra) ->
 %% Proposes a new operation to the leaders
 propose(Proposal, #state{hash_table=HT,
                          proposals = Proposals,
-                         decisions = Decisions,
                          min_slot_num = MinSlot} = State) ->
     % Check if there has been a decision of this proposal
-    case HT:valget(Proposal, Decisions) of
-        % We haven't seen this proposal before
-        % Get the next available slot number, add it to proposals and
-        % Let master know about it
-        not_found ->
-            Proposals1 = HT:set(MinSlot, Proposal, Proposals),
-            Message = {propose, {MinSlot, Proposal}},
-            ?ASYNC_MSG(master_leader, Message),
-            State#state{min_slot_num = MinSlot + 1,
-                        proposals=Proposals1};
-        % If already decided, ignore it
-        _ ->
-            State
-    end.
+    % We do not check if the proposal is a duplicate since once the master
+    % replica sends the proposals
+
+    % Get the next available slot number, add it to proposals and
+    % Let master know about it
+    Proposals1 = HT:set(MinSlot, Proposal, Proposals),
+    Message = {propose, {MinSlot, Proposal}},
+    ?ASYNC_MSG(master_leader, Message),
+    State#state{min_slot_num = MinSlot + 1,
+                    proposals=Proposals1}.
 
 %% Executes the decision for the specified slot
 perform(Proposal, #state{hash_table=HT,
@@ -224,12 +215,12 @@ perform(Proposal, #state{hash_table=HT,
     % Perform cleanup functions
     % Once the slot is filled, all actors no longer need to maintain
     % data for that slot
-    Proposals1 = HT:del(Slot, Proposal, Proposals),
+    Proposals1 = HT:del(Slot, Proposals),
     % We use Decisions map for managing concurrent proposals and to
     % avoid duplicates (multiple leaders)
     % Since the current design allows for atmost 1 leader, we can cleanup
     % Decisions
-    Decisions1 = HT:del(Slot, Proposal, Decisions),
+    Decisions1 = HT:del(Slot, Decisions),
     ?ASYNC_MSG(?LEADER, {slot_decision, Slot}),
     % Cleaning up acceptor directly works here becase we maintain 2N+1
     % replicas instead of just N+1 (as in paper)
@@ -254,14 +245,14 @@ check_decisions(#state{hash_table=HT,
                        decisions = Decisions,
                        slot_num = CurrSlot} = State) ->
     % Check if we have a decision for the current slot
-    case HT:keyget(CurrSlot, Decisions) of
+    case HT:get(CurrSlot, Decisions) of
         % No decision for the current slot, nothing to change
         not_found ->
             State;
         % We have a decision for the current slot
         CurrDecision ->
             % Check if we have a proposal for this slot
-            case HT:keyget(CurrSlot, Proposals) of
+            case HT:get(CurrSlot, Proposals) of
                 % We dont have a proposal for this slot
                 % Execute the decision for this slot and continue
                 not_found ->
