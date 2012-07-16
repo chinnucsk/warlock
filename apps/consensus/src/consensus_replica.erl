@@ -73,8 +73,8 @@ start_link() ->
 %% ------------------------------------------------------------------
 init([]) ->
     ?LDEBUG("Starting " ++ erlang:atom_to_list(?MODULE)),
-    HT = conf_helper:get(bht, int_hash_table),
-    Options = conf_helper:get(bht_options, int_hash_table),
+    HT = util_conf:get(bht, int_hash_table),
+    Options = util_conf:get(bht_options, int_hash_table),
     {ok, #state{hash_table=HT,
                 proposals=HT:new(Options),
                 decisions=HT:new(Options)}}.

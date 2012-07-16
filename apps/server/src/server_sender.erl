@@ -52,8 +52,8 @@ start_link() ->
 %% --------------------------------------------------------------------
 start(ReplyPid) ->
     ?LDEBUG("server_sender::Start"),
-    Port = conf_helper:get(port, replication),
-    FileName = conf_helper:get(file, replication),
+    Port = util_conf:get(port, replication),
+    FileName = util_conf:get(file, replication),
 
     % Start listener
     {ok, Listen} = gen_tcp:listen(Port, [{active,false}, {reuseaddr, true}]),

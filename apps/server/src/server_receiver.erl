@@ -43,8 +43,8 @@ start_link(Args) ->
 %% --------------------------------------------------------------------
 start(Args) ->
     ?LDEBUG("server_receiver::Start"),
-    IpAddr = conf_helper:get(ip, replication),
-    Port = conf_helper:get(port, replication),
+    IpAddr = util_conf:get(ip, replication),
+    Port = util_conf:get(port, replication),
 
     % Open connection to sender
     ?LDEBUG("server_receiver::Connecting to sender at ~p:~p", [IpAddr, Port]),
@@ -61,7 +61,7 @@ start(Args) ->
     ?LDEBUG("Received data from sender"),
 
     % Restore db
-    FileName = conf_helper:get(file, replication),
+    FileName = util_conf:get(file, replication),
     ok = file:write_file(FileName, Data),
     db:restore(FileName),
 

@@ -131,8 +131,6 @@ callback(#rop{type=join,
     % Add the node as a valid member, update cluster size
     cluster_add_node(Node, ClusterDelta),
 
-    %TODO: Master can demonitor "Node" here for a cleaner implementation
-
     % If master, activate the new member
     case consensus_state:is_master() of
         true ->

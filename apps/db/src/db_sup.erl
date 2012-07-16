@@ -40,7 +40,7 @@ start_link() ->
 init([]) ->
     % Start the backend, to maintain ownership
     % TODO: Replace with table manager
-    Backend = conf_helper:get(backend, ?APP),
+    Backend = util_conf:get(backend, ?APP),
     {ok, Client} = Backend:start(),
 
     Children = [{db_worker,

@@ -44,7 +44,7 @@ db_test_() ->
      }}.
 
 simple_run() ->
-    Backend = conf_helper:get(backend, ?APP),
+    Backend = util_conf:get(backend, ?APP),
 
     case Backend of
         db_ets_backend ->

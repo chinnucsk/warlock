@@ -59,7 +59,7 @@ ping() ->
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
 init(Client) ->
-    Backend = conf_helper:get(backend, ?APP),
+    Backend = util_conf:get(backend, ?APP),
     {ok, #state{module=Backend, client=Client}}.
 
 %% ------------------------------------------------------------------

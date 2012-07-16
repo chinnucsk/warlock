@@ -28,7 +28,7 @@
 %% ------------------------------------------------------------------
 -spec start() -> {ok, #client{}}.
 start() ->
-    Options = conf_helper:get(options, ?MODULE),
+    Options = util_conf:get(options, ?MODULE),
     {ok, C} = eredis:start_link(Options),
     {ok, #client{inst=C}}.
 

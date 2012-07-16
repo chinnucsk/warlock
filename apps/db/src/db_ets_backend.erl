@@ -28,8 +28,8 @@
 %% ------------------------------------------------------------------
 -spec start() -> {ok, #client{}}.
 start() ->
-    Name = conf_helper:get(name, ?MODULE),
-    Options = conf_helper:get(options, ?MODULE),
+    Name = util_conf:get(name, ?MODULE),
+    Options = util_conf:get(options, ?MODULE),
     db_ets_timer:start_link(),
     {ok, #client{inst=ets:new(Name, Options)}}.
 

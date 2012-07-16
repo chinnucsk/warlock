@@ -12,7 +12,7 @@
 %%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
--module(conf_helper).
+-module(util_conf).
 
 %% ------------------------------------------------------------------
 %% Include files
@@ -33,11 +33,11 @@ get(Group) ->
 
 -spec get(Key::atom(), Group::atom()) -> term().
 get(Key, Group) ->
-    proplists:get_value(Key, conf_helper:get(Group)).
+    proplists:get_value(Key, util_conf:get(Group)).
 
 -spec get(Key::atom(), Group::atom(), Default::term()) -> term().
 get(Key, Group, Default) ->
-    proplists:get_value(Key, conf_helper:get(Group), Default).
+    proplists:get_value(Key, util_conf:get(Group), Default).
 
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
