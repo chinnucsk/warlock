@@ -43,7 +43,6 @@
 %% Send request to server worker (single gen_server) or use a new gen_server for
 %% every request. Latter is faster
 -define(WORKER(Type, Cmd), server_worker:request(Type, Cmd)).
-%-define(WORKER(Cmd), spawncall_worker(Cmd)).
 
 %% -----------------------------------------------------------------
 %% Public functions
@@ -134,9 +133,3 @@ ready_repl(FromNode) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-%% spawncall_worker(Cmd) ->
-%%     {ok, Worker} = server_command_worker:start(),
-%%     try gen_server:call(Worker, {request, Cmd})
-%%     catch
-%%         exit:{timeout, _} -> {error, timeout}
-%%     end.
