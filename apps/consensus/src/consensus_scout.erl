@@ -39,7 +39,7 @@
 
             % Set of pvalues where
             % pvalue = {Ballot number, Slot number, Proposal}
-            pvalues = orddict:new(),
+            pvalues,
 
             % Ballot number
             ballot_num,
@@ -78,7 +78,8 @@ init([{Leader, Ballot}]) ->
     Message = {p1a, {?SELF, Ballot}},
     ?ASYNC_MSG(acceptors, Message),
     {ok, #state{leader = Leader,
-                ballot_num = Ballot}, ?TIMEOUT}.
+                ballot_num = Ballot,
+                pvalues=ets_ht:new()}, ?TIMEOUT}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
@@ -103,7 +104,7 @@ handle_cast({p1b, {Acceptor, ABallot, APValues}},
             NewPValues = merge_pvalues(APValues, PValues),
             case consensus_util:is_majority(length(NewVotes)) of
                 true ->
-                    Message = {adopted, {ABallot, orddict:to_list(NewPValues)}},
+                    Message = {adopted, {ABallot, ets_ht:to_list(NewPValues)}},
                     ?ASYNC_MSG(Leader, Message),
                     {stop, normal, State};
                 false ->
@@ -148,19 +149,19 @@ code_change(_OldVsn, State, _Extra) ->
 merge_pvalues([], PValues) ->
     PValues;
 merge_pvalues([{Key, {Ballot, _Proposal}=Val} | APValues], PValues) ->
-    PValue = (catch orddict:fetch(Key, PValues)),
-    case PValue of
+    PValue = ets_ht:get(Key, PValues),
+    NewPValues = case PValue of
         % Object not in dict
-        {'EXIT', _} ->
-            orddict:store(Key, Val, PValues);
-        {Key, {CBallot, _CProposal}} ->
+        not_found ->
+            ets_ht:set(Key, Val, PValues);
+        {CBallot, _CProposal} ->
             case consensus_util:ballot_greater(Ballot, CBallot) of
                 % New ballot is larger, replace current
                 true ->
-                    orddict:store(Key, Val, PValues);
+                    ets_ht:set(Key, Val, PValues);
                 % Nothing to change
                 false ->
                     PValues
             end
     end,
-    merge_pvalues(APValues, PValues).
+    merge_pvalues(APValues, NewPValues).
