@@ -94,7 +94,7 @@
 
 %% Request type
 -define(LOCAL, loc).
--define(CLUSTER, cls).
+-define(CLUSTER, clu).
 
 
 

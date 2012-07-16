@@ -31,7 +31,7 @@
 %% ------------------------------------------------------------------
 -spec sync(atom(), term()) -> term().
 sync(Target, Msg) ->
-    TargetAdd = get_add(Target),
+    TargetAdd = get_address(Target),
     gen_server:call(TargetAdd, Msg).
 
 -spec async(atom(), term()) -> ok.
@@ -44,7 +44,7 @@ async(Target, Msg) when
   Target == ?REPLICA ->
     gen_server:cast(Target, Msg);
 async(Target, Msg) ->
-    {Name, Nodes} = get_add(Target),
+    {Name, Nodes} = get_address(Target),
     ?LDEBUG("MSG {TARGET, NODES, Msg}:: {~p, ~p, ~p}", [Name, Nodes, Msg]),
     case Nodes of
         [] ->
@@ -56,8 +56,7 @@ async(Target, Msg) ->
 %% ------------------------------------------------------------------
 %% Internal function
 %% ------------------------------------------------------------------
-
-get_add(Target) ->
+get_address(Target) ->
     case Target of
         % Leader process on the master node
         leaders ->

@@ -28,6 +28,7 @@
 -type slot() :: integer().
 -type proposal() :: #rop{} | term().
 -type pvalue() :: {ballot(), slot(), proposal()}.
+-type lease() :: {tuple(), integer()}.
 
 %% Registered names of consensus cluster actors
 -define(LEADER, consensus_leader).

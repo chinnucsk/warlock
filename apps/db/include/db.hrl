@@ -15,9 +15,7 @@
 %% Type definitions
 %% ------------------------------------------------------------------
 -type key() :: binary().
-
 -type value() :: term().
-
 -type tid() :: integer().
 -type table() :: atom() | tid().
 

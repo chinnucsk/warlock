@@ -36,10 +36,10 @@
 -spec ping() -> pong | pang.
 ping() ->
     case consensus_state:get_node_status(?SELF_NODE) of
-        valid ->
-            pong;
+        down ->
+            pang;
         _ ->
-            pang
+            pong
     end.
 
 -spec propose(#dop{}) -> ok.

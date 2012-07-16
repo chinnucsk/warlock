@@ -8,6 +8,9 @@
 %%%
 %%% A simple implementation of a bi-directional hash table using one ETS table.
 %%% We create two entries for one key-value pair.
+%%%
+%%% Note: The key and value has to be unique in key space and value space resp.
+%%%
 %%% @end
 %%%
 %%% @since : 05 June 2012

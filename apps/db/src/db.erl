@@ -24,8 +24,9 @@
 %% -----------------------------------------------------------------
 %% Private macros
 %% -----------------------------------------------------------------
+-define(TIMEOUT, 1000).
 -define(WORKER, db_worker).
--define(CALL_WORKER(Cmd), try gen_server:call(?WORKER, Cmd)
+-define(CALL_WORKER(Cmd), try gen_server:call(?WORKER, Cmd, ?TIMEOUT)
                           catch
                               exit:{timeout, _} -> {error, timeout}
                           end).

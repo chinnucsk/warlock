@@ -10,6 +10,19 @@
 %%% 1. Depending on the mode (active), execute or queue the decisions
 %%% 2. Allow subcribers, who will receive the decisions
 %%%
+%%% Working:
+%%% All "CLUSTER" commands are handled by the gen_server
+%%%
+%%% Active state: Commands are passed on to the db module and results returned
+%%%
+%%% In-active state: Commands are queued in this state. When "trig_active" is
+%%% called, create a marker in the queue and start processing it. The decisions
+%%% are sent to the subscriber till we reach the mark and then we remove the
+%%% subscriber and process the rest of the queue. When queue empty, switch back
+%%% to active state.
+%%%
+%%% Note: Reponses for "CLUSTER" commands are lost in inactive state
+%%%
 %%% @end
 %%%
 %%% @since : 04 June 2012
@@ -62,7 +75,7 @@ start_link() ->
 
 %% Main callback
 %% Read commands are sent to db directly (better read performance)
-%% Backend needs to handle reads parallely when taking backups
+%% Backend needs to handle reads in parallel when taking backups
 -spec handle(atom(), term()) -> term().
 handle(?LOCAL, Cmd) ->
         db:x(Cmd);
@@ -133,7 +146,7 @@ handle_call({add_subscriber, Node}, _From, State) ->
 handle_call({remove_subscriber, _Node}, _From, State) ->
     {reply, ok, State#state{subscriber=[]}};
 handle_call(queue_processed, _From, State) ->
-    % Sender has completed its queue, start processing local queue
+    % Sender has completed, start processing local queue
     gen_server:cast(?MODULE, process_queue),
     Reply = ok,
     {reply, Reply, State};

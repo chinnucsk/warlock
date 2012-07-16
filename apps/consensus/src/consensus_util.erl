@@ -28,9 +28,8 @@
 -include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
+% Time to wait to stop consensus application
 -define(STOP_TIME, 2000).
-
-% TODO: Create types for frequently used structures
 
 %% ------------------------------------------------------------------
 %% Public functions

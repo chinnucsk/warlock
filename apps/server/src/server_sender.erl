@@ -8,19 +8,17 @@
 %%%
 %%% In lines of redis replication,
 %%% * Client (receiver) connects and issues SYNC command
-%%% * Sender starts queuing all decisions
+%%% * Sender starts queuing all decisions and adds client as a subscriber
 %%% * Sender makes a copy of the data and transfers it to receiver
-%%% * Once transfer complete
-%%%     * Read log
-%%%     * Execute command
-%%%     * Parallely transfer command to receiver
-%%%     * Remove from queue
-%%% * Server keeps transferring to receiver unless asked to stop
+%%% * Once client has all the data, server starts processing local queue
+%%% * Once both are in sync, server stops sending decisions and returns to
+%%%   active state once local queue is completely processed
 %%% @end
 %%%
 %%% @since : 22 June 2012
 %%% @end
 %%%-------------------------------------------------------------------
+%% TODO: Have a timeout
 -module(server_sender).
 
 %% ------------------------------------------------------------------
@@ -33,8 +31,6 @@
 %% --------------------------------------------------------------------
 -include_lib("util/include/common.hrl").
 -include("server.hrl").
-
--define(TIMEOUT, 5000).
 
 %% --------------------------------------------------------------------
 %% Public functions
@@ -77,5 +73,6 @@ start(ReplyPid) ->
     ?LDEBUG("server_sender::Sending file to receiver"),
     gen_tcp:send(Socket, File),
 
+    % Cleanup
     gen_tcp:close(Socket),
     gen_tcp:close(Listen).

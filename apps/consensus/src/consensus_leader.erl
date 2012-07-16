@@ -366,7 +366,7 @@ spawn_commander(PValue) ->
     %consensus_commander_sup:create({?SELF, PValue}).
 
 spawn_scout(Ballot) ->
-    consensus_scout_sup:create({?SELF, Ballot}).
+    consensus_scout:start({?SELF, Ballot}).
 
 spawn_commanders(HT, Ballot, Proposals) ->
     spawn_commanders_lst(HT, Ballot, HT:to_list(Proposals), Proposals).

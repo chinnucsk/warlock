@@ -4,9 +4,9 @@
 %%%-------------------------------------------------------------------
 %%% @author Sukumar Yethadka <sukumar@thinkapi.com>
 %%%
-%%% @doc DB ETS backend
+%%% @doc DB Redis backend
 %%%
-%%% Backend implementation in ETS
+%%% Backend implementation for Redis
 %%% @end
 %%%
 %%% @since : 30 May 2012

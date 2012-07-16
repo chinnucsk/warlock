@@ -6,9 +6,8 @@
 %%%
 %%% @doc Server worker
 %%%
-%%% With respect to "Paxos made moderately complex", we do not have separate
-%%% client id and operation id since the pid of this process defines both
-%%% uniquely
+%%% Server worker creates a timer and a unique reference for every command.
+%%% Timeouts need to be greater than that of the consensus module (commander).
 %%%
 %%% @end
 %%%
@@ -80,6 +79,7 @@ handle_call({request, {Type, Cmd}}, From, #state{requests=Requests}=State) ->
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
@@ -102,7 +102,7 @@ handle_cast(_Msg, State) ->
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
 handle_info({timeout, TRef, ?MODULE},#state{requests=Requests}=State) ->
-    ?LINFO("SER::timeout"),
+    ?LINFO("SERW::timeout"),
     case ets_ht:get(TRef, Requests) of
         not_found ->
             ?LINFO("Error, timeout req not found");
@@ -130,10 +130,8 @@ code_change(_OldVsn, State, _Extra) ->
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
 get_operation(Type, Cmd, ClientId) ->
-    #dop{
-         type = Type,
+    #dop{type = Type,
          module = server_callback,
          function = handle,
          args = Cmd,
-         client = ClientId
-         }.
+         client = ClientId}.

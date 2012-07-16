@@ -34,8 +34,6 @@
 %% --------------------------------------------------------------------
 -include("consensus.hrl").
 
--type lease() :: {tuple(), integer()}.
-
 %% Initial status of the node
 -define(INITIAL_STATUS, valid).
 

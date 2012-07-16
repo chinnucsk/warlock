@@ -10,11 +10,12 @@
 %%% commands on the local DB as per consensus
 %%%
 %%% How a request is handled
-%%% 1. A command is constructed based on the request (command_worker)
-%%% 2. Command is passed on to the consensus module
+%%% 1. A command is constructed based on the request
+%%% 2. Command is passed on to the consensus module via server_worker
 %%% 3. Consensus module gets agreement based on the client
 %%% 4. The callback function (part of command) is called by consensus module
-%%% 5. If reply required, the master replies
+%%% 5. If reply required, the master replies for "CLUSTER" requests and local
+%%%    replica replies for "LOCAL" requests
 %%%
 %%% @end
 %%%
@@ -40,8 +41,7 @@
 
 -define(SELF_NODE, node()).
 
-%% Send request to server worker (single gen_server) or use a new gen_server for
-%% every request. Latter is faster
+%% Send request to server worker (single gen_server)
 -define(WORKER(Type, Cmd), server_worker:request(Type, Cmd)).
 
 %% -----------------------------------------------------------------
@@ -90,6 +90,7 @@ x(_, _Cmd) ->
 %% @doc
 %% Join this node to the cluster
 %%-------------------------------------------------------------------
+-spec repl(node()) -> ok.
 repl(SeedNode) ->
     ?LDEBUG("Replicating from seed node: ~p", [SeedNode]),
     % Get a member node from the master from which data is in sync
@@ -107,6 +108,7 @@ repl(SeedNode) ->
 %% @doc
 %% Fun called by server_receiver once process is complete
 %%-------------------------------------------------------------------
+-spec receive_complete(node()) -> ok.
 receive_complete(SourceNode) ->
     % DB backup is now synced. Add self to cluster
     Callback = {server_callback, trig_active, []},
@@ -116,6 +118,7 @@ receive_complete(SourceNode) ->
 %% @doc
 %% Some node requests to replicate from this node
 %%-------------------------------------------------------------------
+-spec ready_repl(node()) -> {ok, pid()} | {error, repl_in_progress}.
 ready_repl(FromNode) ->
     % Check if replication is already in progress
     case server_callback:is_active() of
@@ -125,7 +128,7 @@ ready_repl(FromNode) ->
             % Add the receiving node as subscriber for queued decisions
             server_callback:add_subscriber(FromNode),
             % Start sender
-            {ok, _Pid} = server_sender:start_link();
+            server_sender:start_link();
         false ->
             {error, repl_in_progress}
     end.

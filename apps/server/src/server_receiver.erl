@@ -56,7 +56,6 @@ start(Args) ->
     gen_tcp:send(Socket, ?SYNC),
 
     % Receive db data
-    %{ok, Data} = gen_tcp:recv(Socket, 0),
     Data = recv_data(<<>>, Socket),
     ?LDEBUG("Received data from sender"),
 
@@ -65,7 +64,7 @@ start(Args) ->
     ok = file:write_file(FileName, Data),
     db:restore(FileName),
 
-    % Send final sync signal and cleanup
+    % Cleanup
     ?LDEBUG("server_receiver::Process complete, cleaning up"),
     gen_tcp:close(Socket),
     server:receive_complete(Args).
