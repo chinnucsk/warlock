@@ -62,8 +62,10 @@ start() ->
 init([]) ->
     {ok, #state{requests=ets_ht:new()}}.
 
-request(Type, Cmd) ->
-    gen_server:call(?MODULE, {request, {Type, Cmd}}).
+request(?LOCAL, Cmd) ->
+    consensus:propose(get_operation(?LOCAL, Cmd, null));
+request(?CLUSTER, Cmd) ->
+    gen_server:call(?MODULE, {request, {?CLUSTER, Cmd}}).
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3

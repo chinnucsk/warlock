@@ -60,7 +60,7 @@ propose(#dop{type=?LOCAL}=Operation) ->
     LeaseTime = consensus_state:get_lease_validity(),
     case (LeaseTime > ?MIN_LEASE) of
         true ->
-            ?MODULE:exec(Operation);
+            local_exec(Operation);
         false ->
             {error, out_of_sync}
     end;
@@ -79,6 +79,17 @@ propose_rcfg(Operation) ->
     ?ASYNC_MSG(replicas, Msg).
 
 %% Execute the callback function in the operation
+%% Called directly by the client
+-spec local_exec(#dop{}) -> ok.
+local_exec(#dop{type = ?LOCAL,
+          module = M,
+          function = F,
+          args = A,
+          client = null}) ->
+    ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
+    M:F(?LOCAL, A).
+
+%% Execute the callback function in the operation
 %% Called by the replica
 -spec exec(#dop{} | #rop{}) -> ok.
 exec(#dop{type = Type,
@@ -92,15 +103,15 @@ exec(#dop{type = Type,
     ?LDEBUG("RESULT ==>> ~p", [Result]),
 
     case Type of
-        ?LOCAL ->
-            ?ASYNC_MSG(Client, {response, Ref, Result});
         ?CLUSTER ->
             case consensus_state:is_master() of
                 true ->
                     ?ASYNC_MSG(Client, {response, Ref, Result});
                 false ->
                     ok
-            end
+            end;
+        ?LOCAL ->
+            ?ASYNC_MSG(Client, {response, Ref, Result})
     end,
     Result;
 exec(#rop{client=undefined}=ROp) ->
