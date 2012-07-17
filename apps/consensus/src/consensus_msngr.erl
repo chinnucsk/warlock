@@ -23,7 +23,6 @@
 %% --------------------------------------------------------------------
 %% Include files and macros
 %% --------------------------------------------------------------------
--include_lib("util/include/common.hrl").
 -include("consensus.hrl").
 
 %% ------------------------------------------------------------------
@@ -35,54 +34,38 @@ sync(Target, Msg) ->
     gen_server:call(TargetAdd, Msg).
 
 -spec async(atom(), term()) -> ok.
-async(Target, Msg) when is_pid(Target) ->
-    ?LDEBUG("MSG {PID, Msg}:: {~p, ~p}", [Target, Msg]),
-    gen_server:cast(Target, Msg);
 async(Target, Msg) when
+  is_pid(Target);
   Target == ?LEADER;
   Target == ?ACCEPTOR;
   Target == ?REPLICA ->
     gen_server:cast(Target, Msg);
 async(Target, Msg) ->
     {Name, Nodes} = get_address(Target),
-    ?LDEBUG("MSG {TARGET, NODES, Msg}:: {~p, ~p, ~p}", [Name, Nodes, Msg]),
-    case Nodes of
-        [] ->
-            ok;
-        _ ->
-            gen_server:abcast(Nodes, Name, Msg)
-    end.
+    gen_server:abcast(Nodes, Name, Msg).
 
 %% ------------------------------------------------------------------
 %% Internal function
 %% ------------------------------------------------------------------
-get_address(Target) ->
-    case Target of
-        % Leader process on the master node
-        leaders ->
-            Master = consensus_state:get_members(),
-            {?LEADER, Master};
-        % Acceptors on valid set of nodes
-        acceptors ->
-            Acceptors = consensus_state:get_members(),
-            {?ACCEPTOR, Acceptors};
-        % Replicas on valid set of nodes
-        replicas ->
-            Replicas = consensus_state:get_members(),
-            {?REPLICA, Replicas};
-        % Replica process on the master node
-        master_replica ->
-            Master = consensus_state:get_master(),
-            {?REPLICA, Master};
-        % Leader process on the master node
-        master_leader ->
-            Master = consensus_state:get_master(),
-            {?LEADER, Master};
-        % Leaders on set of down nodes
-        down_leaders ->
-            Leaders = consensus_state:get_nodes(down),
-            {?LEADER, Leaders};
-        % General case where registered name/pid and node is specified
-        {Name, Node} ->
-            {Name, [Node]}
-    end.
+%% Get address based on given target
+% Leader process on the master node
+get_address(leaders) ->
+    {?LEADER, consensus_state:get_members()};
+% Acceptors on valid set of nodes
+get_address(acceptors) ->
+    {?ACCEPTOR, consensus_state:get_members()};
+% Replicas on valid set of nodes
+get_address(replicas) ->
+    {?REPLICA, consensus_state:get_members()};
+% Replica process on the master node
+get_address(master_replica) ->
+    {?REPLICA, consensus_state:get_master()};
+% Leader process on the master node
+get_address(master_leader) ->
+    {?LEADER, consensus_state:get_master()};
+% Leaders on set of down nodes
+get_address(down_leaders) ->
+    {?LEADER, consensus_state:get_nodes(down)};
+% General case where registered name/pid and node is specified
+get_address({Name, Node}) ->
+    {Name, [Node]}.

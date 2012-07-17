@@ -77,16 +77,14 @@ simple_run() ->
     Result1 = receive_cast(Ref1),
     ?assertEqual(Result1, {ok, success}),
 
-    Ref2 = erlang:make_ref(),
     Operation2 = #dop{type=?LOCAL,
                      module=server_callback,
                      function=handle,
                      args=[get, a],
-                     client={self(), Ref2}
+                     client=null
                      },
-    consensus:propose(Operation2),
+    Result2 = consensus:propose(Operation2),
 
-    Result2 = receive_cast(Ref2),
     ?assertEqual(Result2, {ok, b}).
 
 %%-------------------------------------------------------------------
