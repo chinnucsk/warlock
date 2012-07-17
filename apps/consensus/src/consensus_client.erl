@@ -67,7 +67,7 @@ propose(#dop{type=?LOCAL}=Operation) ->
 %% Send other requests to the local replica
 propose(Operation) ->
     Msg = {request, Operation},
-    ?ASYNC_MSG(?REPLICA, Msg).
+    ?ASYNC_MSG(master_replica, Msg).
 
 %% Send the request to all replicas
 %% Only the ones with active leaders will succeed, rest are ignored

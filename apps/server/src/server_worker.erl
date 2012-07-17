@@ -39,7 +39,7 @@
 }).
 
 %% How long the process waits for the reply from consensus module
--define(TIMEOUT, 3000).
+-define(TIMEOUT, 5000).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions

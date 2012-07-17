@@ -151,8 +151,6 @@ handle_cast({decision, {Slot, Proposal}},
     % Save the decision
     Decisions1 = HT:set(Slot, Proposal, Decisions),
     % Go through decisions and update state if needed
-    % TODO: check_decisions could take arbitrarily long time. Spawn
-    % helper process? Perhaps blocking is essential for algo. Check
     NewState = check_decisions(State#state{decisions=Decisions1}),
     {noreply, NewState};
 handle_cast(reset, #state{hash_table=HT,
@@ -198,11 +196,12 @@ propose(Proposal, #state{hash_table=HT,
 
     % Get the next available slot number, add it to proposals and
     % Let master know about it
+    ?LDEBUG("REP:PROPOSE::~p::~p", [MinSlot, Proposal]),
     Proposals1 = HT:set(MinSlot, Proposal, Proposals),
     Message = {propose, {MinSlot, Proposal}},
     ?ASYNC_MSG(master_leader, Message),
     State#state{min_slot_num = MinSlot + 1,
-                    proposals=Proposals1}.
+                proposals=Proposals1}.
 
 %% Executes the decision for the specified slot
 perform(Proposal, #state{hash_table=HT,
@@ -234,7 +233,7 @@ perform(Proposal, #state{hash_table=HT,
         false ->
             MinSlot
     end,
-    State#state{slot_num=NewMinSlot,
+    State#state{slot_num=NewSlot,
                 min_slot_num=NewMinSlot,
                 proposals=Proposals1,
                 decisions=Decisions1}.
@@ -245,6 +244,7 @@ check_decisions(#state{hash_table=HT,
                        decisions = Decisions,
                        slot_num = CurrSlot} = State) ->
     % Check if we have a decision for the current slot
+    ?LDEBUG("REP::HTGET::~p::~p", [CurrSlot, HT:get(CurrSlot, Decisions)]),
     case HT:get(CurrSlot, Decisions) of
         % No decision for the current slot, nothing to change
         not_found ->

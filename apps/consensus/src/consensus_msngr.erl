@@ -62,14 +62,6 @@ get_address(Target) ->
         leaders ->
             Master = consensus_state:get_members(),
             {?LEADER, Master};
-        % Replica process on the master node
-        master_replica ->
-            Master = consensus_state:get_master(),
-            {?REPLICA, Master};
-        % Leader process on the master node
-        master_leader ->
-            Master = consensus_state:get_master(),
-            {?LEADER, Master};
         % Acceptors on valid set of nodes
         acceptors ->
             Acceptors = consensus_state:get_members(),
@@ -78,6 +70,14 @@ get_address(Target) ->
         replicas ->
             Replicas = consensus_state:get_members(),
             {?REPLICA, Replicas};
+        % Replica process on the master node
+        master_replica ->
+            Master = consensus_state:get_master(),
+            {?REPLICA, Master};
+        % Leader process on the master node
+        master_leader ->
+            Master = consensus_state:get_master(),
+            {?LEADER, Master};
         % Leaders on set of down nodes
         down_leaders ->
             Leaders = consensus_state:get_nodes(down),
