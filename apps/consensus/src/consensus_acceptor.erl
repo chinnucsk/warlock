@@ -89,12 +89,21 @@ handle_cast({p1a, {Leader, LBallot}}, #state{hash_table=HT,
                                              ballot_num = CurrBallot,
                                              accepted = Accepted} = State) ->
     ?LDEBUG("ACC ~p::Received message ~p", [self(), {p1a, {Leader, LBallot}}]),
-    Ballot = case consensus_util:ballot_greater(LBallot, CurrBallot) of
+
+    %% Scout should be allowed only if lease has expired
+    LeaseTime = consensus_state:get_lease_validity(),
+    Ballot = case (LeaseTime > ?MIN_LEASE) of
         true ->
-            LBallot;
+            CurrBallot;
         false ->
-            CurrBallot
+            case consensus_util:ballot_greater(LBallot, CurrBallot) of
+                true ->
+                    LBallot;
+                false ->
+                    CurrBallot
+                end
     end,
+
     NewState = State#state{ballot_num = Ballot},
     Response = {p1b, {?SELF, Ballot, HT:to_list(Accepted)}},
     ?ASYNC_MSG(Leader, Response),

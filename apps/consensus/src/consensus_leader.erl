@@ -40,7 +40,9 @@
 %% order to allow that leader to progress, we can wait for below time.
 %% Should ideally be
 %% http://en.wikipedia.org/wiki/Additive_increase/multiplicative_decrease
--define(BACKOFF_TIME, 100).  % In milli seconds
+%% We use random so that two or more competing leaders has different times to
+%% renew lease
+-define(BACKOFF_TIME, random:uniform(500)).  % In milli seconds
 
 -define(COMMANDER_ON, 1).
 -define(COMMANDER_OFF, 0).
