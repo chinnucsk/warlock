@@ -155,7 +155,6 @@ system_check() ->
     end.
 
 replace_self(Target) ->
-    io:format("CONSOLE>>~p::~p~n~n", [Target, node()]),
     case Target =:= node() of
         true ->
             % Wait for cluster to sync, start app, give it time to start

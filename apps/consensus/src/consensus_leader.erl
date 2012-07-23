@@ -287,7 +287,7 @@ handle_cast(disable_master, #state{monitors=Monitors,
                   end, Monitors),
 
     TRef = create_timer(OldTimerRef, master_check,
-                        ?LEASE_TIME, ?SELF, spawn_scout),
+                        ?LEASE_TIME * 2, ?SELF, spawn_scout),
 
     {noreply, State#state{active=false, monitors=[], timer_ref=TRef}};
 %% Spawn scout with increased ballot to try and become leader
