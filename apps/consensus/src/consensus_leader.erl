@@ -243,9 +243,12 @@ handle_cast({slot_decision, Slot}, #state{hash_table=HT,
 %% Deactivate leader when node is joining a cluster
 handle_cast(cluster_join, State) ->
     {noreply, State#state{active=false}};
-%% Reset the leaders local state
-handle_cast(reset, #state{hash_table=HT, proposals=Proposals}=State) ->
-    {noreply, State#state{proposals=HT:reset(Proposals)}};
+%% Reset the leaders local state and delay its election timing
+handle_cast(reset, #state{hash_table=HT, proposals=Proposals,
+                          timer_ref=OldTimerRef}=State) ->
+    TimerRef = create_timer(OldTimerRef, master_check,
+                        ?LEASE_TIME * 2, ?SELF, spawn_scout),
+    {noreply, State#state{proposals=HT:reset(Proposals), timer_ref=TimerRef}};
 %% Increment the leader's view by changing the ballot and restarting election
 handle_cast(incr_view, #state{hash_table=HT,
                               ballot_num=Ballot, proposals=Proposals}=State) ->

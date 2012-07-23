@@ -21,6 +21,7 @@
          ballot_lesser/2,
          incr_ballot/2, incr_view/1,
          ballot_equal/2, ballot_same/2,
+         is_view_change/2,
          is_majority/1,
          get_lease/0,
          stop_app/0, stop_app/1]).
@@ -67,6 +68,13 @@ ballot_same(BallotA, BallotB) ->
 -spec ballot_greateq(ballot(), ballot()) -> boolean().
 ballot_greateq(BallotA, BallotB) ->
     ballot_greater(BallotA, BallotB) orelse ballot_equal(BallotA, BallotB).
+
+-spec is_view_change(ballot(), ballot()) -> boolean().
+is_view_change({ViewA, _IntA, _LeaderA}, {ViewB, _IntB, _LeaderB})
+    when ViewA > ViewB ->
+      true;
+is_view_change(_, _) ->
+    false.
 
 %% Increment only allowed when second ballot is greater
 -spec incr_ballot(ballot(), ballot()) -> ballot().

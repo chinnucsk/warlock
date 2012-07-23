@@ -90,12 +90,14 @@ handle_cast({p1a, {Leader, LBallot}}, #state{hash_table=HT,
                                              accepted = Accepted} = State) ->
     ?LDEBUG("ACC ~p::Received message ~p", [self(), {p1a, {Leader, LBallot}}]),
 
-    %% Scout should be allowed only if lease has expired
+    %% Scout should be allowed only if lease has expired; does not apply if
+    %% it is a view change
     LeaseTime = consensus_state:get_lease_validity(),
-    Ballot = case (LeaseTime > ?MIN_LEASE) of
-        true ->
+    Ballot = case {(LeaseTime > ?MIN_LEASE),
+                   consensus_util:is_view_change(LBallot, CurrBallot)} of
+        {true, false} ->
             CurrBallot;
-        false ->
+        {_, _} ->
             case consensus_util:ballot_greater(LBallot, CurrBallot) of
                 true ->
                     LBallot;

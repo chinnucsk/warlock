@@ -88,7 +88,6 @@ remove([NodeStr]) ->
 %%-------------------------------------------------------------------
 -spec replace([string() | string()]) -> ok.
 replace([TargetNodeStr, SeedNodeStr]) ->
-    system_check(),
     SeedNode = str_to_node(SeedNodeStr),
     TargetNode = str_to_node(TargetNodeStr),
     %% Connect to the node
@@ -98,6 +97,8 @@ replace([TargetNodeStr, SeedNodeStr]) ->
         pong ->
             % Remove target node from the cluster
             rpc:call(SeedNode, consensus, rcfg_remove, [TargetNode]),
+            % If TargetNode is self, then consensus app may be down
+            replace_self(TargetNode),
             % Replicate using seed node
             server:repl(SeedNode)
     end.
@@ -152,3 +153,16 @@ system_check() ->
         _ ->
             throw({error, consensus_unavailable})
     end.
+
+replace_self(Target) ->
+    io:format("CONSOLE>>~p::~p~n~n", [Target, node()]),
+    case Target =:= node() of
+        true ->
+            % Wait for cluster to sync, start app, give it time to start
+            timer:sleep(1000),
+            application:start(consensus),
+            timer:sleep(100);
+        false ->
+            ok
+    end.
+
