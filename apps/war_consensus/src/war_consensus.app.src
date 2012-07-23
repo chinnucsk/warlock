@@ -1,0 +1,12 @@
+{application, war_consensus,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { war_consensus_app, []}},
+  {env, []}
+ ]}.

@@ -3,8 +3,8 @@ SHELL := /bin/bash
 # Generic app Makefile 
 
 REBAR=./rebar
-APP=dlock
-REPO=dlock
+APP=warlock
+REPO=warlock
 
 all: small_clean deps compile
 

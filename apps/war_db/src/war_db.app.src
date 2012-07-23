@@ -1,0 +1,12 @@
+{application, war_db,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { war_db_app, []}},
+  {env, []}
+ ]}.

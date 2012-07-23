@@ -1,0 +1,11 @@
+{application, war_util,
+ [
+  {description, "General utility library for warlock"},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []}
+ ]}.
