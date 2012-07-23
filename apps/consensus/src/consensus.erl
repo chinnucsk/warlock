@@ -35,11 +35,15 @@
 %% ------------------------------------------------------------------
 -spec ping() -> pong | pang.
 ping() ->
-    case consensus_state:get_node_status(?SELF_NODE) of
+    try case consensus_state:get_node_status(?SELF_NODE) of
         down ->
             pang;
         _ ->
             pong
+    end
+    catch
+        _Error:_Reason ->
+            pang
     end.
 
 -spec propose(#dop{}) -> ok.

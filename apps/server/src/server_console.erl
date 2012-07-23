@@ -29,13 +29,14 @@
 %% @doc
 %% Join an existing cluster
 %%-------------------------------------------------------------------
--spec join([string()]) -> ok | {error, not_reachable}.
+-spec join([string()]) -> ok.
 join([NodeStr]) ->
+    system_check(),
     Node = str_to_node(NodeStr),
     %% Connect to the node
     case net_adm:ping(Node) of
         pang ->
-            {error, not_reachable};
+            throw({error, not_reachable});
         pong ->
             consensus:rcfg_join(Node)
     end.
@@ -44,13 +45,14 @@ join([NodeStr]) ->
 %% @doc
 %% Replicate from some (non-master) node in the cluster
 %%-------------------------------------------------------------------
--spec repl([string()]) -> ok | {error, not_reachable}.
+-spec repl([string()]) -> ok.
 repl([NodeStr]) ->
+    system_check(),
     Node = str_to_node(NodeStr),
     %% Connect to the node
     case net_adm:ping(Node) of
         pang ->
-            {error, not_reachable};
+            throw({error, not_reachable});
         pong ->
             server:repl(Node)
     end.
@@ -67,13 +69,14 @@ leave([]) ->
 %% @doc
 %% Remove given member from the cluster
 %%-------------------------------------------------------------------
--spec remove([string()]) -> ok | {error, not_reachable}.
+-spec remove([string()]) -> ok.
 remove([NodeStr]) ->
+    system_check(),
     Node = str_to_node(NodeStr),
     %% Connect to the node
     case net_adm:ping(Node) of
         pang ->
-            {error, not_reachable};
+            throw({error, not_reachable});
         pong ->
             consensus:rcfg_remove(Node)
     end.
@@ -83,14 +86,15 @@ remove([NodeStr]) ->
 %% Replace given member from the cluster using meta info from seed node
 %% Size of the cluster remains same
 %%-------------------------------------------------------------------
--spec replace([string() | string()]) -> ok | {error, not_reachable}.
+-spec replace([string() | string()]) -> ok.
 replace([TargetNodeStr, SeedNodeStr]) ->
+    system_check(),
     SeedNode = str_to_node(SeedNodeStr),
     TargetNode = str_to_node(TargetNodeStr),
     %% Connect to the node
     case net_adm:ping(SeedNode) of
         pang ->
-            {error, not_reachable};
+            throw({error, not_reachable});
         pong ->
             % Remove target node from the cluster
             rpc:call(SeedNode, consensus, rcfg_remove, [TargetNode]),
@@ -126,4 +130,25 @@ node_hostname() ->
             Hostname;
         _ ->
             []
+    end.
+
+%% Checks if all the parts of the system are running
+system_check() ->
+    case server:ping() of
+        pong ->
+            ok;
+        _ ->
+            throw({error, server_unavailable})
+    end,
+    case server:ping_backend() of
+        pong ->
+            ok;
+        _ ->
+            throw({error, backend_unavailable})
+    end,
+    case server:ping_service() of
+        pong ->
+            ok;
+        _ ->
+            throw({error, consensus_unavailable})
     end.

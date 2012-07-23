@@ -39,7 +39,8 @@ main(Args) ->
                 {badrpc, Reason} ->
                     io:format("RPC to ~p failed: ~p\n", [TargetNode, Reason]),
                     halt(1);
-                _ ->
+                Other ->
+                    io:format("~p\n", [Other]),
                     halt(1)
             end;
         ["rpcterms", Module, Function, ArgsAsString] ->
