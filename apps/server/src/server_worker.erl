@@ -40,6 +40,7 @@
 
 %% How long the process waits for the reply from consensus module
 -define(TIMEOUT, 5000).
+-define(CALL_TIMEOUT, 6000).
 
 %% ------------------------------------------------------------------
 %% API Function Definitions
@@ -65,7 +66,7 @@ init([]) ->
 request(?LOCAL, Cmd) ->
     consensus:propose(get_operation(?LOCAL, Cmd, null));
 request(?CLUSTER, Cmd) ->
-    gen_server:call(?MODULE, {request, {?CLUSTER, Cmd}}).
+    gen_server:call(?MODULE, {request, {?CLUSTER, Cmd}}, ?CALL_TIMEOUT).
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3

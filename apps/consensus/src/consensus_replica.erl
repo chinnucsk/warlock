@@ -244,7 +244,6 @@ check_decisions(#state{hash_table=HT,
                        decisions = Decisions,
                        slot_num = CurrSlot} = State) ->
     % Check if we have a decision for the current slot
-    ?LDEBUG("REP::HTGET::~p::~p", [CurrSlot, HT:get(CurrSlot, Decisions)]),
     case HT:get(CurrSlot, Decisions) of
         % No decision for the current slot, nothing to change
         not_found ->
