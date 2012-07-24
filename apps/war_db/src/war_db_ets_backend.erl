@@ -64,10 +64,18 @@ ping(#client{inst=Table}) ->
 
 -spec x(Cmd::term(), Client::#client{}) -> term().
 % Get object with given key
-x([get, Key], #client{inst=Table}) ->
+x([get, Key], #client{inst=Table}=Client) ->
     case ets:lookup(Table, Key) of
         [] ->
             {ok, not_found};
+        [{Key, {Value, ExpireTime}}] ->
+            case now_to_seconds(erlang:now()) =< ExpireTime of
+                true ->
+                    {ok, Value};
+                false ->
+                    x([del, Key], Client),
+                    {ok, not_found}
+            end;
         [{Key, Value}] ->
             {ok, Value};
         [_H | _T] ->
@@ -86,24 +94,19 @@ x([setnx, Key, Value], Client) ->
             {ok, not_set}
     end;
 % Store object with expiry.Time in milli seconds
-x([setex, Time, Key, Value], Client) ->
-    Result = x([set, Key, Value], Client),
-    war_db_ets_timer:expire_after(Time, Key),
-    Result;
-% Set expiry for object with given key
-x([expire, Time, Key], _Client) ->
-    war_db_ets_timer:expire_after(Time, Key);
+x([setex, Time, Key, Value], #client{inst=Table}) ->
+    ExpireTime = get_expire_time(Time),
+    war_db_ets_timer:expire_at(ExpireTime, Key),
+    true = ets:insert(Table, {Key, {Value, ExpireTime}}),
+    {ok, success};
 % Store object if not set. Time in milli seconds
 % Extend expire if already set,  "Value" should be equal to the one in the db
 x([setenx, Time, Key, Value], Client) ->
     case x([get, Key], Client) of
         {ok, not_found} ->
-            Result = x([set, Key, Value], Client),
-            war_db_ets_timer:expire_after(Time, Key),
-            Result;
+            x([setex, Time, Key, Value], Client);
         {ok, Value} ->
-            war_db_ets_timer:expire_after(Time, Key),
-            {ok, success};
+            x([setex, Time, Key, Value], Client);
         {ok, _Val} ->
             {ok, not_set}
     end;
@@ -111,5 +114,31 @@ x([setenx, Time, Key, Value], Client) ->
 x([del, Key], #client{inst=Table}) ->
     true = ets:delete(Table, Key),
     {ok, success};
+% Delete object with given Key, if expire matches
+x([del_expired, {Key, Expire}], #client{inst=Table}) ->
+    case ets:lookup(Table, Key) of
+        [{Key, {_Value, Expire}}] ->
+            ets:delete(Table, Key),
+            {ok, success};
+        _ ->
+            {ok, not_found}
+    end;
 x(_, _) ->
     {error, unknown_command}.
+
+
+get_expire_time(Time) ->
+    now_to_seconds(now_add(erlang:now(), Time * 1000000)).
+
+now_add ({ Mega, Sec, Micro }, Add) ->
+  proper ({ Mega, Sec, Micro + Add }).
+
+proper (Time = { _, Sec, Micro }) when Sec < 1000000, Micro < 1000000 ->
+  Time;
+proper ({ Mega, Sec, Micro }) when Sec < 1000000 ->
+  proper ({ Mega, Sec + 1, Micro - 1000000 });
+proper ({ Mega, Sec, Micro }) ->
+  proper ({ Mega + 1, Sec - 1000000, Micro }).
+
+now_to_seconds({Mega, Sec, _}) ->
+    (Mega * 1000000) + Sec.

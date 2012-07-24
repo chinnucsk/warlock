@@ -14,13 +14,11 @@
 %%% @end
 %%%-------------------------------------------------------------------
 -module(war_db_ets_timer).
--behaviour(gen_server).
 
 %% ------------------------------------------------------------------
-%% API Function Exports
+%% Function Exports
 %% ------------------------------------------------------------------
--export([start/0, start_link/0,
-         expire_after/2, expire_at/2]).
+-export([start_link/0, expire_at/2]).
 
 %% ------------------------------------------------------------------
 %% gen_server Function Exports
@@ -33,9 +31,24 @@
 %% --------------------------------------------------------------------
 -include_lib("war_util/include/war_common.hrl").
 
+-define(TABLE, war_db_ets_timer).
+-define(INTERVAL, 10000).                           % In milli seconds
+-define(BATCH, 100).
+
 -record(state, {
-                %% Keeps track of all the requests
-                manager
+                %% We use only one timer for periodic runs
+                timer_ref,
+
+                %% Maintain a pointer to the next key slot that is to be deleted
+                curr_key,
+
+                %% Table: bag
+                %% Key: Time mod interval
+                %% Value:: Data to be expired + expiry time
+                table,
+
+                %% List of lists used for storing data marked for deletion
+                exp_data=[]
 }).
 
 %% ------------------------------------------------------------------
@@ -45,10 +58,6 @@
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
--spec start() -> {error, _} | {ok, pid()}.
-start() ->
-    gen_server:start({local, ?MODULE}, ?MODULE, [], []).
-
 %% ------------------------------------------------------------------
 %% gen_server Function Definitions
 %% ------------------------------------------------------------------
@@ -57,56 +66,22 @@ start() ->
 %% Initialize gen_server
 %% ------------------------------------------------------------------
 init([]) ->
-    {ok, #state{manager=war_util_ets_ht:new()}}.
+    TRef = erlang:start_timer(?INTERVAL, self(), tick),
+    {ok, #state{timer_ref=TRef,
+                curr_key=get_current_key(),
+                table=ets:new(?TABLE, [bag, named_table, public])}}.
 
 %% ------------------------------------------------------------------
 %% Delete key after given Time
 %% ------------------------------------------------------------------
--spec expire_after(integer(), term()) -> ok.
-expire_after(Time, Key) ->
-    gen_server:call(?MODULE, {expire_after, Time, Key}).
-
-%% ------------------------------------------------------------------
-%% Delete key at given Time
-%% ------------------------------------------------------------------
 -spec expire_at(integer(), term()) -> ok.
-expire_at(Time, Key) ->
-    gen_server:call(?MODULE, {expire_at, Time, Key}).
+expire_at(ExpireTime, DBKey) ->
+    Key = get_after_key(ExpireTime),
+    ets:insert(?TABLE, {Key, {DBKey, ExpireTime}}).
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_call/3
 %% ------------------------------------------------------------------
-% TODO: Better timer implementation for more performance,
-% e.g. timer per second instead of timer per request
-handle_call({expire_after, Time, Key}, _From, #state{manager=Manager}=State) ->
-    Msg = {key, Key},
-    Reply = case war_util_ets_ht:get(Key, Manager) of
-        not_found ->
-            {ok, start_timer(Time, Key, Msg, Manager)};
-        OldRef ->
-            {ok, restart_timer(OldRef, Time, Key, Msg, Manager)}
-    end,
-    {reply, Reply, State};
-handle_call({expire_at, Time, Key}, _From, #state{manager=Manager}=State) ->
-    Msg = {key, Key},
-    ExpireTime = {Time div 1000000, Time rem 1000000, 0},
-    ExpireAfter = erlang:trunc(timer:now_diff(ExpireTime, erlang:now()) / 1000),
-
-    case war_util_ets_ht:get(Key, Manager) of
-        not_found ->
-            ok;
-        OldRef ->
-            stop_timer(OldRef)
-    end,
-
-    Reply = case ExpireAfter > 0 of
-        true ->
-            {ok, start_timer(Time, Key, Msg, Manager)};
-        false ->
-            expire_key(Key)
-    end,
-
-    {reply, Reply, State};
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
@@ -114,21 +89,38 @@ handle_call(_Request, _From, State) ->
 %% ------------------------------------------------------------------
 %% gen_server:handle_cast/2
 %% ------------------------------------------------------------------
+handle_cast(process_exp_data, #state{exp_data=ExpData}=State) ->
+    NewExpData = process_exp(ExpData, ?BATCH),
+    case NewExpData of
+        [] ->
+            ok;
+        _ ->
+            gen_server:cast(?MODULE, process_exp_data)
+    end,
+    {noreply, State#state{exp_data=NewExpData}};
 handle_cast(_Msg, State) ->
     {noreply, State}.
 
 %% ------------------------------------------------------------------
 %% gen_server:handle_info/2
 %% ------------------------------------------------------------------
-handle_info({timeout, TRef, {key, Key}}, #state{manager=Manager}=State) ->
-    case war_util_ets_ht:get(Key, Manager) of
-        not_found ->
-            ?LINFO("Error, timeout req not found");
-        TRef ->
-            expire_key(Key),
-            war_util_ets_ht:del(Key, Manager)
-    end,
-    {noreply, State};
+handle_info({timeout, _TRef, tick}, #state{timer_ref=OldTRef, curr_key=CurrKey,
+                                          table=Table,
+                                          exp_data=ExpData}=State) ->
+    case get_current_key() > CurrKey of
+        true ->
+            ExpList = ets:lookup(Table, CurrKey),
+            ets:delete(Table, CurrKey),
+            NewExpData = lists:append(ExpData, [ExpList]),
+            NewTRef = restart_timer(OldTRef, ?INTERVAL, tick),
+            gen_server:cast(?MODULE, process_exp_data),
+            {noreply, State#state{timer_ref=NewTRef,
+                                  curr_key=CurrKey+1,
+                                  exp_data=NewExpData}};
+        false ->
+            TRef = restart_timer(OldTRef, ?INTERVAL div 2, tick),
+            {noreply, State#state{timer_ref=TRef}}
+    end;
 handle_info(_Info, State) ->
     {noreply, State}.
 
@@ -147,17 +139,29 @@ code_change(_OldVsn, State, _Extra) ->
 %% ------------------------------------------------------------------
 %% Internal Function Definitions
 %% ------------------------------------------------------------------
-expire_key(Key) ->
-    war_db:x([del, Key]).
+%% Returns slot of
+get_key({Mega, Sec, Micro}) ->
+    (trunc((Mega * 1000000 + Sec + Micro / 1000000) * 1000) div ?INTERVAL).
 
-start_timer(Time, Key, Msg, Manager) ->
-    TRef = erlang:start_timer(Time, self(), Msg),
-    war_util_ets_ht:set(Key, TRef, Manager),
-    TRef.
+get_current_key() ->
+    get_key(erlang:now()).
 
-stop_timer(OldRef) ->
-    erlang:cancel_timer(OldRef).
+get_after_key(Time) ->
+    Mega = Time div 1000000,
+    Seconds = Time rem 1000000,
+    get_key({Mega, Seconds, 0}).
 
-restart_timer(OldRef, Time, Key, Msg, Manager) ->
-    stop_timer(OldRef),
-    start_timer(Time, Key, Msg, Manager).
+restart_timer(OldRef, Time, Msg) ->
+    erlang:cancel_timer(OldRef),
+    erlang:start_timer(Time, self(), Msg).
+
+
+process_exp([], _Batch) ->
+    [];
+process_exp(List, 0) ->
+    List;
+process_exp([[] | Tail], _Batch) ->
+    Tail;
+process_exp([[{_Key, Val} | STail] | Tail], Batch) ->
+    war_db:x([del_expired, Val]),
+    process_exp([STail | Tail], Batch-1).
