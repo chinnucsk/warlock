@@ -94,7 +94,7 @@ x([setnx, Key, Value], Client) ->
     end;
 % Store object with expiry.Time in milli seconds
 x([setex, Time, Key, Value], #client{inst=Table}) ->
-    ExpireTime = get_expire_time(Time),
+    ExpireTime = expire_sec_to_timestamp(Time),
     true = ets:insert(Table, {Key, {Value, ExpireTime}}),
     {ok, success};
 % Store object if not set. Time in milli seconds
@@ -121,11 +121,35 @@ x([del_expired, {Key, Expire}], #client{inst=Table}) ->
         _ ->
             {ok, not_found}
     end;
+% Set expire if not set, extend expire if already set
+x([expire, Time, Key], Client) ->
+    case x([get, Key], Client) of
+        {ok, not_found} ->
+            {ok, not_found};
+        {ok, Value} ->
+            x([setex, Time, Key, Value], Client)
+    end;
+x([ttl, Key], #client{inst=Table}=Client) ->
+    case ets:lookup(Table, Key) of
+        [] ->
+            {ok, not_found};
+        [{Key, {_Value, ExpireTime}}] ->
+            NowSec = now_to_seconds(erlang:now()),
+            case NowSec =< ExpireTime of
+                true ->
+                    {ok, ExpireTime - NowSec};
+                false ->
+                    x([del, Key], Client),
+                    {ok, not_found}
+            end;
+        [{Key, _Value}] ->
+            {ok, -1}
+    end;
 x(_, _) ->
     {error, unknown_command}.
 
 
-get_expire_time(Time) ->
+expire_sec_to_timestamp(Time) ->
     now_to_seconds(now_add(erlang:now(), Time * 1000000)).
 
 now_add ({ Mega, Sec, Micro }, Add) ->

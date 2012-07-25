@@ -34,12 +34,12 @@ app_stop(_) ->
 %%-------------------------------------------------------------------
 
 db_test_() ->
-    {timeout, 60,
+    {timeout, 100,
      {setup,
       fun app_start/0,
       fun app_stop/1,
       [
-       ?_test(simple_run())
+       {timeout, 15, ?_test(simple_run())}
       ]
      }}.
 
@@ -93,9 +93,20 @@ simple_run() ->
             timer:sleep(1000),
             ResultSetenx4 = war_db:x([get, a]),
             ?assertEqual({ok, b}, ResultSetenx4),
-            timer:sleep(500),
+            timer:sleep(1000),
             ResultSetenx5 = war_db:x([get, a]),
             ?assertEqual({ok, not_found}, ResultSetenx5),
+
+            % Expire test
+            ResultExp1 = war_db:x([set, x, y]),
+            ?assertEqual({ok, success}, ResultExp1),
+            ResultExp2 = war_db:x([expire, 1, x]),
+            ?assertEqual({ok, success}, ResultExp2),
+            ResultExp3 = war_db:x([ttl, x]),
+            ?assertEqual({ok, 1}, ResultExp3),
+            timer:sleep(2000),
+            ResultExp4 = war_db:x([get, x]),
+            ?assertEqual({ok, not_found}, ResultExp4),
 
             % Backup test
             insert_mult(Keys, Vals),
