@@ -75,28 +75,27 @@ simple_run() ->
             ResetDBVals = get_mult(Keys),
             ?assertNotEqual(Vals, ResetDBVals),
 
-            %% To run the expire based unit tests, change interval in
-            %% war_db_ets_timer to 1000
+            % SETEX test
+            ResultSetex1 = war_db:x([setex, 1, x, y]),
+            ?assertEqual({ok, success}, ResultSetex1),
+            timer:sleep(2000),
+            ResultSetex2 = war_db:x([get, x]),
+            ?assertEqual({ok, not_found}, ResultSetex2),
 
-%%             % SETEX test
-%%             ResultSetex1 = war_db:x([setenx, 1, x, y]),
-%%             ?assertEqual({ok, success}, ResultSetex1),
-%%             timer:sleep(2000),
-%%             ResultSetex2 = war_db:x([get, x]),
-%%             ?assertEqual({ok, not_found}, ResultSetex2),
-%%
-%%             % SETENX test
-%%             ResultSetenx1 = war_db:x([setenx, 1, a, b]),
-%%             ?assertEqual({ok, success}, ResultSetenx1),
-%%             timer:sleep(500),
-%%             ResultSetenx2 = war_db:x([setenx, 1, a, b]),
-%%             ?assertEqual({ok, success}, ResultSetenx2),
-%%             timer:sleep(1000),
-%%             ResultSetenx3 = war_db:x([get, a]),
-%%             ?assertEqual({ok, b}, ResultSetenx3),
-%%             timer:sleep(500),
-%%             ResultSetenx4 = war_db:x([get, a]),
-%%             ?assertEqual({ok, not_found}, ResultSetenx4),
+            % SETENX test
+            ResultSetenx1 = war_db:x([setenx, 1, a, b]),
+            ?assertEqual({ok, success}, ResultSetenx1),
+            ResultSetenx2 = war_db:x([setenx, 1, a, c]),
+            ?assertEqual({ok, not_set}, ResultSetenx2),
+            timer:sleep(500),
+            ResultSetenx3 = war_db:x([setenx, 1, a, b]),
+            ?assertEqual({ok, success}, ResultSetenx3),
+            timer:sleep(1000),
+            ResultSetenx4 = war_db:x([get, a]),
+            ?assertEqual({ok, b}, ResultSetenx4),
+            timer:sleep(500),
+            ResultSetenx5 = war_db:x([get, a]),
+            ?assertEqual({ok, not_found}, ResultSetenx5),
 
             % Backup test
             insert_mult(Keys, Vals),

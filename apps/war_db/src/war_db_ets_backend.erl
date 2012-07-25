@@ -12,6 +12,7 @@
 %%% @since : 30 May 2012
 %%% @end
 %%%-------------------------------------------------------------------
+% TODO: Add auto expire for keys with expiry set
 -module(war_db_ets_backend).
 -behavior(war_db_backend).
 
@@ -30,12 +31,10 @@
 start() ->
     Name = war_util_conf:get(name, ?MODULE),
     Options = war_util_conf:get(options, ?MODULE),
-    war_db_ets_timer:start_link(),
     {ok, #client{inst=ets:new(Name, Options)}}.
 
 -spec start(list()) -> {ok, #client{}}.
 start([Name | Options]) ->
-    war_db_ets_timer:start_link(),
     {ok, #client{inst=ets:new(Name, Options)}}.
 
 -spec reset(Client::#client{}) -> {ok, #client{}}.
@@ -96,7 +95,6 @@ x([setnx, Key, Value], Client) ->
 % Store object with expiry.Time in milli seconds
 x([setex, Time, Key, Value], #client{inst=Table}) ->
     ExpireTime = get_expire_time(Time),
-    war_db_ets_timer:expire_at(ExpireTime, Key),
     true = ets:insert(Table, {Key, {Value, ExpireTime}}),
     {ok, success};
 % Store object if not set. Time in milli seconds
