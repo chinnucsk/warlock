@@ -112,15 +112,6 @@ x([setenx, Time, Key, Value], Client) ->
 x([del, Key], #client{inst=Table}) ->
     true = ets:delete(Table, Key),
     {ok, success};
-% Delete object with given Key, if expire matches
-x([del_expired, {Key, Expire}], #client{inst=Table}) ->
-    case ets:lookup(Table, Key) of
-        [{Key, {_Value, Expire}}] ->
-            ets:delete(Table, Key),
-            {ok, success};
-        _ ->
-            {ok, not_found}
-    end;
 % Set expire if not set, extend expire if already set
 x([expire, Time, Key], Client) ->
     case x([get, Key], Client) of
