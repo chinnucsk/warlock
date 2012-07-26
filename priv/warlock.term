@@ -2,7 +2,7 @@
  %% Dlock config
  {warlock, [
           %% warlock backend
-          {backend, war_db_ets_backend}
+          {backend, war_db_kingdom_backend}
          ]
  },
 
@@ -29,6 +29,18 @@
                                 {reconnect_sleep, 100}
                                ]}
                     ]
+ },
+
+  %% Dlock backend config :: Magic Land ETS
+ {war_db_kingdom_backend, [
+                   %% Name of the main ets table
+                   {name, war_db_kingdom_backend},
+
+                   %% Options for the ets table
+                   %% Current we used a public table since the supervisor
+                   %% owns it. Can be replaced once we have a table manager
+                   {options, [named_table, public, {read_concurrency, true}]}
+                  ]
  },
 
  {replication, [

@@ -6,6 +6,10 @@
 %%-------------------------------------------------------------------
 %% setup code
 %%-------------------------------------------------------------------
+
+%% TODO: Make war_db accept config directly so that we can run all the
+%% backend tests without changing the config file
+
 apps() ->
     [compiler, syntax_tools, lager, war_db].
 
@@ -45,11 +49,10 @@ db_test_() ->
 
 simple_run() ->
     Backend = war_util_conf:get(backend, ?APP),
+    ?assertEqual(pong, war_db:ping()),
 
     case Backend of
         war_db_ets_backend ->
-            ?assertEqual(pong, war_db:ping()),
-
             Keys = keys(),
             Vals = vals(),
 
@@ -122,6 +125,40 @@ simple_run() ->
             ?assertEqual(Vals, RestoreDBVals),
 
             file:delete(File);
+        war_db_kingdom_backend ->
+            Uid = 11002233445,
+            Pid = self(),
+            Node = node(),
+
+            WriteCmd = [set, 1, Node, Uid, Pid],
+            ReadCmd = [get, Uid],
+            DelCmd = [del, Uid],
+            ExpireCmd = [expire, 1, Uid],
+            TtlCmd = [ttl, Uid],
+
+            % Write, read, timer test
+            ?assertEqual({ok, success}, war_db:x(WriteCmd)),
+            ?assertEqual({ok, Pid}, war_db:x(ReadCmd)),
+            timer:sleep(2000),
+            ?assertEqual({ok, not_found}, war_db:x(ReadCmd)),
+
+            % Delete test
+            ?assertEqual({ok, success}, war_db:x(WriteCmd)),
+            ?assertEqual({ok, success}, war_db:x(DelCmd)),
+            ?assertEqual({ok, not_found}, war_db:x(ReadCmd)),
+
+            % Expire test
+            ?assertEqual({ok, success}, war_db:x(WriteCmd)),
+            timer:sleep(900),
+            ?assertEqual({ok, success}, war_db:x(ExpireCmd)),
+            timer:sleep(900),
+            ?assertEqual({ok, Pid}, war_db:x(ReadCmd)),
+            timer:sleep(900),
+            ?assertEqual({ok, not_found}, war_db:x(ReadCmd)),
+
+            % TTL test
+            ?assertEqual({ok, success}, war_db:x(WriteCmd)),
+            ?assertEqual({ok, 1}, war_db:x(TtlCmd));
         _ ->
             %% TODO: Write tests for redis backend
             ok
