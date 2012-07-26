@@ -112,6 +112,16 @@ x([ttl, Key], #client{inst=Table}) ->
             NowSec = now_to_seconds(erlang:now()),
             {ok, ExpireTime - NowSec}
     end;
+x([del_node, Node], Client) ->
+    case catch ets:tab2list(Node) of
+        [] ->
+            {ok, success};
+        {'EXIT', {badarg, _}} ->
+            {ok, success};
+        Data ->
+            delete_node(Node, Data, Client),
+            {ok, success}
+    end;
 x(_, _) ->
     {error, unknown_command}.
 
@@ -164,6 +174,16 @@ get(Table, Key) ->
 delete(Table, Node, Key) ->
     true = ets:delete(Table, Key),
     true = ets:delete(Node, Key).
+
+delete_node(Node, Data, Client) ->
+    delete_mult(Data, Client),
+    ets:delete(Node).
+
+delete_mult([], _Client) ->
+    ok;
+delete_mult([{Key} | T], Client) ->
+    x([del, Key], Client),
+    delete_mult(T, Client).
 
 expire_sec_to_timestamp(Time) ->
     now_to_seconds(now_add(erlang:now(), Time * 1000000)).

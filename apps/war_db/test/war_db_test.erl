@@ -158,7 +158,20 @@ simple_run() ->
 
             % TTL test
             ?assertEqual({ok, success}, war_db:x(WriteCmd)),
-            ?assertEqual({ok, 1}, war_db:x(TtlCmd));
+            ?assertEqual({ok, 1}, war_db:x(TtlCmd)),
+
+            % Del node test
+            ?assertEqual({ok, success}, war_db:x([set, 60, Node, 1, Pid])),
+            ?assertEqual({ok, success}, war_db:x([set, 60, Node, 2, Pid])),
+            ?assertEqual({ok, success}, war_db:x([set, 60, Node, 3, Pid])),
+            ?assertEqual({ok, success}, war_db:x([set, 60, Node, 4, Pid])),
+            ?assertEqual({ok, success}, war_db:x([set, 60, Node, 5, Pid])),
+            ?assertEqual({ok, success}, war_db:x([del_node, Node])),
+            ?assertEqual({ok, not_found}, war_db:x([get, 1])),
+            ?assertEqual({ok, not_found}, war_db:x([get, 2])),
+            ?assertEqual({ok, not_found}, war_db:x([get, 3])),
+            ?assertEqual({ok, not_found}, war_db:x([get, 4])),
+            ?assertEqual({ok, not_found}, war_db:x([get, 5]));
         _ ->
             %% TODO: Write tests for redis backend
             ok
