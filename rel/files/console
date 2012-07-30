@@ -1,0 +1,3 @@
+#!/bin/bash
+
+erl -name console_$1 -hidden -remsh $1
