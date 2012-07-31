@@ -78,10 +78,6 @@ x([set, Time, Node, Key, Value], #client{inst=Table}) ->
         {ok, not_found} ->
             set_new(Table, Node, Time, Key, Value),
             {ok, success};
-        % Extend expire
-        {Key, Value, Node, _ExpireTime} ->
-            set(Table, Node, Time, Key, Value),
-            {ok, success};
         % Already set
         {Key, _Value, _Node, _ExpireTime} ->
             {ok, not_set}
