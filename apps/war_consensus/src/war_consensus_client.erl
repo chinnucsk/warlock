@@ -97,10 +97,9 @@ exec(#dop{type = Type,
           function = F,
           args = A,
           client = {Client, Ref}}) ->
-    ?LDEBUG("Executing operation ~p:~p(~p)", [M, F, A]),
 
     Result = M:F(Type, A),
-    ?LDEBUG("RESULT ==>> ~p", [Result]),
+    ?LDEBUG("Executing operation ~p:~p(~p)~nResult:~p", [M, F, A, Result]),
 
     case Type of
         ?CLUSTER ->

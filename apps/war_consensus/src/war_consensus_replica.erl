@@ -196,7 +196,6 @@ propose(Proposal, #state{hash_table=HT,
 
     % Get the next available slot number, add it to proposals and
     % Let master know about it
-    ?LDEBUG("REP:PROPOSE::~p::~p", [MinSlot, Proposal]),
     Proposals1 = HT:set(MinSlot, Proposal, Proposals),
     Message = {propose, {MinSlot, Proposal}},
     ?ASYNC_MSG(master_leader, Message),

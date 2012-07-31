@@ -95,7 +95,6 @@ incr_view({View, _Int, Leader}) ->
 -spec is_majority(integer()) -> boolean().
 is_majority(VoteCount) ->
     Size = war_consensus_state:get_cluster_size(),
-    ?LDEBUG("MAJORITY: {VoteCount, ClusterSize, Result}:: {~p, ~p, ~p}",
             [VoteCount, Size, VoteCount >= (erlang:trunc(Size/2) + 1)]),
     VoteCount >= (erlang:trunc(Size/2) + 1).
 
