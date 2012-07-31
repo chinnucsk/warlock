@@ -94,9 +94,9 @@ x(_, _Cmd) ->
 repl(SeedNode) ->
     ?LDEBUG("Replicating from seed node: ~p", [SeedNode]),
     % Get a member node from the master from which data is in sync
-    SourceNode = rpc:call(SeedNode, consensus, get_sync_member, []),
+    SourceNode = rpc:call(SeedNode, war_consensus, get_sync_member, []),
     % Send a message to SourceNode to get ready
-    {ok, _Pid} = rpc:call(SourceNode, server, ready_repl, [?SELF_NODE]),
+    {ok, _Pid} = rpc:call(SourceNode, war_server, ready_repl, [?SELF_NODE]),
     % Start receiver
     war_server_receiver:start_link(SourceNode),
     ok.

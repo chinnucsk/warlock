@@ -96,7 +96,7 @@ replace([TargetNodeStr, SeedNodeStr]) ->
             throw({error, not_reachable});
         pong ->
             % Remove target node from the cluster
-            rpc:call(SeedNode, consensus, rcfg_remove, [TargetNode]),
+            rpc:call(SeedNode, war_consensus, rcfg_remove, [TargetNode]),
             % If TargetNode is self, then consensus app may be down
             replace_self(TargetNode),
             % Replicate using seed node
