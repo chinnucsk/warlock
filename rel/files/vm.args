@@ -4,6 +4,9 @@
 ## Cookie for distributed erlang
 -setcookie {{cookie}}
 
+## Start all the nodes in the cluster as hidden
+-hidden
+
 ## Heartbeat management; auto-restarts VM if it dies or becomes unresponsive
 ## (Disabled by default..use with caution!)
 ##-heart
