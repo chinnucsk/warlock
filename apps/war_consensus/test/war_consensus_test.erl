@@ -1,3 +1,10 @@
+%%% Consensus app test
+%%%
+%%% The tests are targeted for war_db_ets_backend
+%%%-------------------------------------------------------------------
+
+
+
 -module(war_consensus_test).
 
 -include_lib("eunit/include/eunit.hrl").
@@ -87,7 +94,3 @@ simple_run() ->
     Result2 = war_consensus:propose(Operation2),
 
     ?assertEqual(Result2, {ok, b}).
-
-%%-------------------------------------------------------------------
-%% internal functions
-%%-------------------------------------------------------------------

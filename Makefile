@@ -26,11 +26,8 @@ compile:
 	rm -rf .eunit
 	$(REBAR) compile
 
-#test:
-#	$(REBAR) skip_deps=true eunit
-#	rm -rf doc/coverage
-#	mkdir doc/coverage
-#	cp -r .eunit/*.html doc/coverage
+testapp:
+	$(REBAR) skip_deps=true eunit
 
 TEST_LOG_FILE := eunit.log
 testclean:
