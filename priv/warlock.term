@@ -1,10 +1,12 @@
 [
  %% Dlock config
- {warlock, [
-          %% warlock backend
-          {backend, war_db_kingdom_backend}
-         ]
- },
+{warlock, [
+           %% warlock backend
+           {backend, war_db_judy_backend},
+           {port, 9736},
+           {pool_size, 20}
+          ]
+},
 
  %% Dlock backend config :: ETS
  {war_db_ets_backend, [
