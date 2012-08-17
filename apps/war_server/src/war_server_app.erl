@@ -19,7 +19,8 @@
 %% ------------------------------------------------------------------
 
 start(_StartType, _StartArgs) ->
-    war_server_sup:start_link().
+    war_server_sup:start_link(),
+    war_server_pool_sup:start_link().
 
 stop(_State) ->
     ok.

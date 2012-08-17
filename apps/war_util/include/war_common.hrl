@@ -96,6 +96,9 @@
 -define(LOCAL, loc).
 -define(CLUSTER, clu).
 
+-define(LOCALB, <<"loc">>).
+-define(CLUSTERB, <<"clu">>).
+
 
 
 

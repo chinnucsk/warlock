@@ -136,6 +136,26 @@ x([ttl, Key], #client{inst=Table}=Client) ->
         [{Key, _Value}] ->
             {ok, -1}
     end;
+x([<<"get">>, Key], #client{inst=Table}=Client) ->
+    case ets:lookup(Table, Key) of
+        [] ->
+            not_found;
+        [{Key, {Value, ExpireTime}}] ->
+            case now_to_seconds(erlang:now()) =< ExpireTime of
+                true ->
+                    Value;
+                false ->
+                    x([del, Key], Client),
+                    not_found
+            end;
+        [{Key, Value}] ->
+            Value;
+        [_H | _T] ->
+            multiple_values
+    end;
+x([<<"set">>, Key, Value], #client{inst=Table}) ->
+    true = ets:insert(Table, {Key, Value}),
+    ok;
 x(_, _) ->
     {error, unknown_command}.
 
