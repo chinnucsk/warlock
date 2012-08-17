@@ -2,7 +2,9 @@
  %% Dlock config
  {warlock, [
           %% warlock backend
-          {backend, war_db_kingdom_backend}
+          {backend, war_db_ets_backend},
+          {port, 9736},
+          {pool_size, 20}
          ]
  },
 
