@@ -105,7 +105,7 @@ x([ttl, Key], #client{inst=Table}) ->
         {ok, not_found} ->
             {ok, not_found};
         {Key, _Value, _Node, ExpireTime} ->
-            NowSec = now_to_seconds(erlang:now()),
+            NowSec = now_to_seconds(os:timestamp()),
             {ok, ExpireTime - NowSec}
     end;
 x([del_node, Node], Client) ->
@@ -144,7 +144,7 @@ get_value(Table, Key) ->
         [] ->
             {ok, not_found};
         [{Key, Value, Node, ExpireTime}] ->
-            case now_to_seconds(erlang:now()) =< ExpireTime of
+            case now_to_seconds(os:timestamp()) =< ExpireTime of
                 true ->
                     {ok, Value};
                 false ->
@@ -158,7 +158,7 @@ get(Table, Key) ->
         [] ->
             {ok, not_found};
         [{Key, Value, Node, ExpireTime}] ->
-            case now_to_seconds(erlang:now()) =< ExpireTime of
+            case now_to_seconds(os:timestamp()) =< ExpireTime of
                 true ->
                     {Key, Value, Node, ExpireTime};
                 false ->
@@ -182,7 +182,7 @@ delete_mult([{Key} | T], Client) ->
     delete_mult(T, Client).
 
 expire_sec_to_timestamp(Time) ->
-    now_to_seconds(now_add(erlang:now(), Time * 1000000)).
+    now_to_seconds(now_add(os:timestamp(), Time * 1000000)).
 
 now_add ({ Mega, Sec, Micro }, Add) ->
   proper ({ Mega, Sec, Micro + Add }).

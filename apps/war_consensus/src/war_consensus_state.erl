@@ -174,7 +174,7 @@ get_lease_validity() ->
     {LeaseStart, LeaseTime} = get_lease(),
     %% LeaseTime is in ms. Covert it to micro
     Lease = now_add(LeaseStart, LeaseTime * 1000),
-    erlang:trunc(timer:now_diff(Lease, erlang:now()) / 1000).
+    erlang:trunc(timer:now_diff(Lease, os:timestamp()) / 1000).
 
 %% Get master while making sure it still has the lease
 -spec get_valid_master() -> [node()] | undefined.
