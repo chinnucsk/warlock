@@ -102,11 +102,12 @@ handle_cast({p1a, {Leader, LBallot}}, #state{hash_table=HT,
     ?ASYNC_MSG(Leader, Response),
     {noreply, NewState};
 %% phase 2 a message from some leader
-handle_cast({p2a, {Leader, {LBallot, Slot, Proposal} = PValue}},
+handle_cast({p2a, {Leader, {LBallot, Slot, Proposal}}},
             #state{hash_table=HT,
                    ballot_num = CurrBallot,
                    accepted = Accepted} = State) ->
-    ?LDEBUG("ACC ~p::Received message ~p", [self(), {p2a, {Leader, PValue}}]),
+    ?LDEBUG("ACC ~p::Received message ~p",
+            [self(), {p2a, {Leader, {LBallot, Slot, Proposal}}}]),
     {Accepted1, Ballot} =
         case {war_consensus_util:ballot_greateq(LBallot, CurrBallot),
               war_consensus_rcfg:is_slot(Slot)} of

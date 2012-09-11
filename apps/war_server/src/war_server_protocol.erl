@@ -33,6 +33,5 @@
 %% ------------------------------------------------------------------
 -spec start_link(pid(), pid(), atom(), list()) -> {error, _} | {ok, pid()}.
 start_link(ListenerPid, Socket, Transport, Opts) ->
-    ?LINFO("PROTO::~p ~p ~p ~p", [ListenerPid, Socket, Transport, Opts]),
     supervisor:start_child(war_server_pool_sup,
                            [ListenerPid, Socket, Transport, Opts]).

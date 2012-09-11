@@ -29,10 +29,17 @@
 -endif.
 
 %% Logging macros
+-ifdef(debug).
 -define(LDEBUG(Msg),
     lager:debug(Msg)).
 -define(LDEBUG(Msg, Args),
     lager:debug(Msg, Args)).
+-else.
+-define(LDEBUG(_Msg),
+    ok).
+-define(LDEBUG(_Msg, _Args),
+    ok).
+-endif.
 
 -define(LINFO(Msg),
     lager:info(Msg)).
