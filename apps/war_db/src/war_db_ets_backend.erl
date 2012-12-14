@@ -17,6 +17,7 @@
 -behavior(war_db_backend).
 
 -include("war_db.hrl").
+-include_lib("war_util/include/war_common.hrl").
 
 %% ------------------------------------------------------------------
 %% Function Exports
@@ -67,7 +68,7 @@ x([get, Key], #client{inst=Table}=Client) ->
     case ets:lookup(Table, Key) of
         [] ->
             {ok, not_found};
-        [{Key, {Value, ExpireTime}}] ->
+        [{Key, Value, ExpireTime}] ->
             case now_to_seconds(os:timestamp()) =< ExpireTime of
                 true ->
                     {ok, Value};
@@ -95,7 +96,7 @@ x([setnx, Key, Value], Client) ->
 % Store object with expiry.Time in milli seconds
 x([setex, Time, Key, Value], #client{inst=Table}) ->
     ExpireTime = expire_sec_to_timestamp(Time),
-    true = ets:insert(Table, {Key, {Value, ExpireTime}}),
+    true = ets:insert(Table, {Key, Value, ExpireTime}),
     {ok, success};
 % Store object if not set. Time in milli seconds
 % Extend expire if already set,  "Value" should be equal to the one in the db
@@ -124,7 +125,7 @@ x([ttl, Key], #client{inst=Table}=Client) ->
     case ets:lookup(Table, Key) of
         [] ->
             {ok, not_found};
-        [{Key, {_Value, ExpireTime}}] ->
+        [{Key, _Value, ExpireTime}] ->
             NowSec = now_to_seconds(os:timestamp()),
             case NowSec =< ExpireTime of
                 true ->
@@ -140,7 +141,7 @@ x([<<"get">>, Key], #client{inst=Table}=Client) ->
     case ets:lookup(Table, Key) of
         [] ->
             not_found;
-        [{Key, {Value, ExpireTime}}] ->
+        [{Key, Value, ExpireTime}] ->
             case now_to_seconds(os:timestamp()) =< ExpireTime of
                 true ->
                     Value;
